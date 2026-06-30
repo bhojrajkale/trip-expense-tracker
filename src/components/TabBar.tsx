@@ -1,0 +1,56 @@
+import type { Tab } from '../types'
+
+interface Props {
+  active: Tab
+  onChange: (tab: Tab) => void
+}
+
+const tabs: { id: Tab; label: string; icon: string }[] = [
+  { id: 'dashboard', label: 'Home', icon: '⊞' },
+  { id: 'add', label: 'Add', icon: '+' },
+  { id: 'expenses', label: 'Expenses', icon: '₹' },
+  { id: 'people', label: 'People', icon: '👥' },
+]
+
+export default function TabBar({ active, onChange }: Props) {
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-700 flex"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      {tabs.map((tab) => {
+        const isActive = active === tab.id
+        const isAdd = tab.id === 'add'
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            aria-label={tab.label}
+            className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[52px] transition-colors duration-150 ${
+              isAdd
+                ? 'text-white'
+                : isActive
+                ? 'text-indigo-400'
+                : 'text-slate-500'
+            }`}
+          >
+            {isAdd ? (
+              <span
+                className="flex items-center justify-center rounded-full bg-indigo-500 text-white font-semibold leading-none"
+                style={{ width: 24, height: 24, fontSize: 18 }}
+              >
+                +
+              </span>
+            ) : (
+              <span className="text-[18px] leading-none">{tab.icon}</span>
+            )}
+            <span className={`font-medium leading-none ${isAdd ? 'text-indigo-300' : 'text-[10px]'}`}
+              style={isAdd ? { fontSize: 10 } : {}}>
+              {tab.label}
+            </span>
+          </button>
+        )
+      })}
+    </nav>
+  )
+}

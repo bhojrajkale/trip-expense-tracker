@@ -1,19 +1,6 @@
-import { useMemo } from 'react'
 import type { Expense, Trip } from '../../types'
-import { formatINR, todayISO } from '../../utils/format'
-import { CATEGORIES } from '../CategoryConfig'
+import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-} from 'recharts'
 
 interface Props {
   trip: Trip
@@ -24,42 +11,6 @@ export default function Dashboard({ trip, expenses }: Props) {
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
   const remaining = trip.budget - totalSpent
-
-  const today = todayISO()
-  const todaySpent = expenses
-    .filter((e) => e.date === today)
-    .reduce((s, e) => s + e.amount, 0)
-
-  const tripDays = useMemo(() => {
-    const start = new Date(trip.startDate)
-    const end = trip.endDate ? new Date(trip.endDate) : new Date()
-    const diff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000) + 1)
-    return diff
-  }, [trip.startDate, trip.endDate])
-
-  const dailyBudget = trip.budget / tripDays
-
-  // Category breakdown for pie
-  const categoryData = CATEGORIES.map((cat) => ({
-    name: cat.label,
-    value: expenses
-      .filter((e) => e.category === cat.id)
-      .reduce((s, e) => s + e.amount, 0),
-    color: cat.color,
-    emoji: cat.emoji,
-  })).filter((c) => c.value > 0)
-
-  // Daily spending for bar chart
-  const dailyMap = expenses.reduce<Record<string, number>>((acc, e) => {
-    acc[e.date] = (acc[e.date] ?? 0) + e.amount
-    return acc
-  }, {})
-  const dailyData = Object.entries(dailyMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, amount]) => ({
-      date: new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-      amount,
-    }))
 
   const balances = computeBalances(expenses, trip.members)
   const settlements = minimizeSettlements(balances)

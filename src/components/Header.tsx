@@ -6,12 +6,20 @@ interface Props {
   trips: Trip[]
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
+  onDeleteTrip: (id: string) => void
   userPhotoURL?: string | null
   onSignOut?: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, userPhotoURL, onSignOut }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onDeleteTrip, userPhotoURL, onSignOut }: Props) {
   const [showPicker, setShowPicker] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  function handleDelete(id: string) {
+    onDeleteTrip(id)
+    setConfirmDelete(null)
+    setShowPicker(false)
+  }
 
   return (
     <header
@@ -23,7 +31,7 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, use
           <span className="text-xl">✈️</span>
           {activeTrip ? (
             <button
-              onClick={() => setShowPicker(!showPicker)}
+              onClick={() => { setShowPicker(!showPicker); setConfirmDelete(null) }}
               className="flex items-center gap-1 min-w-0"
             >
               <span className="font-semibold text-white truncate max-w-[180px]">
@@ -59,21 +67,46 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, use
       {showPicker && trips.length > 0 && (
         <div className="mt-2 bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
           {trips.map((trip) => (
-            <button
+            <div
               key={trip.id}
-              onClick={() => {
-                onSelectTrip(trip.id)
-                setShowPicker(false)
-              }}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-slate-700 last:border-0 transition-colors ${
-                trip.id === activeTrip?.id
-                  ? 'bg-indigo-500/20 text-indigo-300'
-                  : 'text-slate-200 hover:bg-slate-700'
+              className={`flex items-center border-b border-slate-700 last:border-0 transition-colors ${
+                trip.id === activeTrip?.id ? 'bg-indigo-500/20' : 'hover:bg-slate-700'
               }`}
             >
-              <div className="font-medium">{trip.name}</div>
-              <div className="text-slate-400 text-xs">{trip.destination}</div>
-            </button>
+              <button
+                onClick={() => { onSelectTrip(trip.id); setShowPicker(false); setConfirmDelete(null) }}
+                className="flex-1 text-left px-4 py-3 text-sm"
+              >
+                <div className={`font-medium ${trip.id === activeTrip?.id ? 'text-indigo-300' : 'text-slate-200'}`}>
+                  {trip.name}
+                </div>
+                <div className="text-slate-400 text-xs">{trip.destination}</div>
+              </button>
+
+              {confirmDelete === trip.id ? (
+                <div className="flex items-center gap-1 pr-2">
+                  <button
+                    onClick={() => setConfirmDelete(null)}
+                    className="text-xs text-slate-400 px-2 py-1 rounded-lg border border-slate-600"
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={() => handleDelete(trip.id)}
+                    className="text-xs text-red-400 px-2 py-1 rounded-lg border border-red-500/30"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}
+                  className="text-slate-600 hover:text-red-400 px-3 py-3 text-base transition-colors"
+                >
+                  🗑
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}

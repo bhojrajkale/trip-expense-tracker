@@ -55,6 +55,7 @@ export default function App() {
         trips={store.trips}
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
+        onDeleteTrip={store.deleteTrip}
         userPhotoURL={user.photoURL}
         onSignOut={signOutUser}
       />

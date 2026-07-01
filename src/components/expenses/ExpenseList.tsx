@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
 import { getCategoryConfig } from '../CategoryConfig'
+import { downloadCSV } from '../../utils/export'
 
 interface Props {
   expenses: Expense[]
@@ -36,6 +37,14 @@ export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props)
 
   return (
     <div className="space-y-4 p-4 pb-32">
+      <div className="flex justify-end">
+        <button
+          onClick={() => downloadCSV(trip, expenses)}
+          className="text-xs text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg active:opacity-70"
+        >
+          Export CSV
+        </button>
+      </div>
       {Object.entries(grouped).map(([date, dayExpenses]) => (
         <div key={date}>
           <div className="flex items-center justify-between mb-2">

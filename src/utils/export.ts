@@ -1,5 +1,6 @@
 import type { Trip, Expense } from '../types'
 import { getCategoryConfig } from '../components/CategoryConfig'
+import { computeBalances, minimizeSettlements } from './settlement'
 
 function escapeCell(value: string): string {
   return `"${value.replace(/"/g, '""')}"`
@@ -10,7 +11,7 @@ export function downloadCSV(trip: Trip, expenses: Expense[]): void {
 
   const header = ['Date', 'Category', 'Amount (₹)', 'Paid By', 'Split Between', 'Notes']
 
-  const rows = [...expenses]
+  const expenseRows = [...expenses]
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((exp) => {
       const category =
@@ -34,7 +35,29 @@ export function downloadCSV(trip: Trip, expenses: Expense[]): void {
       ].join(',')
     })
 
-  const csv = [header.map(escapeCell).join(','), ...rows].join('\n')
+  // Settlement section
+  const balances = computeBalances(expenses, trip.members)
+  const settlements = minimizeSettlements(balances)
+
+  const settlementRows = [
+    '',
+    escapeCell('Settlement Summary'),
+    escapeCell('Who Pays') + ',' + escapeCell('Who Receives') + ',' + escapeCell('Amount (₹)'),
+    ...settlements.map((s) =>
+      [
+        escapeCell(memberMap.get(s.from) ?? s.from),
+        escapeCell(memberMap.get(s.to) ?? s.to),
+        escapeCell(String(s.amount)),
+      ].join(',')
+    ),
+  ]
+
+  const csv = [
+    header.map(escapeCell).join(','),
+    ...expenseRows,
+    ...(settlements.length > 0 ? settlementRows : []),
+  ].join('\n')
+
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

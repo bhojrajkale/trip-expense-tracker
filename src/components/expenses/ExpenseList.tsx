@@ -40,9 +40,9 @@ export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props)
       <div className="flex justify-end">
         <button
           onClick={() => downloadCSV(trip, expenses)}
-          className="text-xs text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg active:opacity-70"
+          className="flex items-center gap-1.5 text-xs font-medium text-indigo-300 bg-indigo-500/15 border border-indigo-500/40 px-3 py-2 rounded-xl active:opacity-70"
         >
-          Export CSV
+          <span>↓</span> Export CSV
         </button>
       </div>
       {Object.entries(grouped).map(([date, dayExpenses]) => (

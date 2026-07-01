@@ -17,19 +17,20 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center bg-slate-950 p-8 text-center" style={{ minHeight: '100dvh' }}>
-      <span className="text-6xl mb-4">✈️</span>
-      <h1 className="text-2xl font-bold text-white mb-2">TripTracker</h1>
-      <p className="text-slate-400 text-sm mb-8 max-w-xs">
+    <div className="flex flex-col items-center justify-center bg-[#f5f5f7] p-8 text-center" style={{ minHeight: '100dvh' }}>
+      <span className="text-6xl mb-5">✈️</span>
+      <h1 className="text-2xl font-semibold text-[#1d1d1f] mb-2" style={{ letterSpacing: '-0.3px' }}>TripTracker</h1>
+      <p className="text-[#7a7a7a] text-[17px] mb-10 max-w-xs leading-relaxed">
         Sign in to sync your trips and expenses across all your devices.
       </p>
 
-      {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
       <button
         onClick={handleSignIn}
         disabled={loading}
-        className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white text-slate-900 font-semibold text-base disabled:opacity-50 active:scale-95 transition-transform"
+        className="flex items-center gap-3 px-7 py-3.5 rounded-full bg-white border border-[#e0e0e0] text-[#1d1d1f] font-medium text-base disabled:opacity-50 active:scale-95 transition-transform"
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
       >
         <GoogleIcon />
         {loading ? 'Signing in…' : 'Continue with Google'}

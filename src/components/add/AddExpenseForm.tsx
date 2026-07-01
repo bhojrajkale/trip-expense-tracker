@@ -81,47 +81,50 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     })
   }
 
+  const inputClass = "w-full bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc] text-sm"
+
   return (
-    <div className="p-4 space-y-5 pb-32">
+    <div className="p-4 space-y-4 pb-32">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">{isEdit ? 'Edit Expense' : 'Add Expense'}</h2>
+        <h2 className="text-lg font-semibold text-[#1d1d1f]" style={{ letterSpacing: '-0.3px' }}>
+          {isEdit ? 'Edit Expense' : 'Add Expense'}
+        </h2>
         {isEdit && (
-          <button onClick={onCancel} className="text-slate-400 text-sm">
-            Cancel
-          </button>
+          <button onClick={onCancel} className="text-[#0066cc] text-sm">Cancel</button>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Amount */}
-        <div className="bg-slate-800 rounded-2xl p-4">
-          <label className="block text-xs text-slate-400 mb-2">Amount (₹)</label>
+        <div className="bg-white border border-[#e0e0e0] rounded-[18px] p-4">
+          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Amount (₹)</label>
           <div className="flex items-center gap-2">
-            <span className="text-2xl text-slate-400">₹</span>
+            <span className="text-2xl text-[#7a7a7a]">₹</span>
             <input
-              className="flex-1 bg-transparent text-3xl font-bold text-white placeholder-slate-600 focus:outline-none"
+              className="flex-1 bg-transparent text-3xl font-semibold text-[#1d1d1f] placeholder-[#cccccc] focus:outline-none"
               placeholder="0"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               autoFocus
+              style={{ letterSpacing: '-0.5px' }}
             />
           </div>
         </div>
 
         {/* Category */}
         <div>
-          <label className="block text-xs text-slate-400 mb-2">Category</label>
+          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Category</label>
           <div className="grid grid-cols-3 gap-2">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setCategory(cat.id)}
-                className={`flex flex-col items-center gap-1 py-3 rounded-xl border text-xs font-medium transition-all ${
+                className={`flex flex-col items-center gap-1 py-3 rounded-[18px] border text-xs font-medium transition-all ${
                   category === cat.id
-                    ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300'
-                    : 'border-slate-700 bg-slate-800 text-slate-400'
+                    ? 'border-[#0066cc] bg-[#0066cc]/8 text-[#0066cc]'
+                    : 'border-[#e0e0e0] bg-white text-[#7a7a7a]'
                 }`}
               >
                 <span className="text-xl">{cat.emoji}</span>
@@ -131,7 +134,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
           {category === 'custom' && (
             <input
-              className="mt-2 w-full bg-slate-800 border border-indigo-500/50 rounded-xl px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500"
+              className={`mt-2 ${inputClass} border-[#0066cc]/50`}
               placeholder="Enter category name (e.g. Medicine, Tickets…)"
               value={customCategoryName}
               onChange={(e) => setCustomCategoryName(e.target.value)}
@@ -143,17 +146,17 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         {/* Paid by */}
         <div>
-          <label className="block text-xs text-slate-400 mb-2">Paid by</label>
+          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Paid by</label>
           <div className="flex flex-wrap gap-2">
             {trip.members.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => setPaidBy(m.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all active:scale-95 ${
                   paidBy === m.id
-                    ? 'bg-indigo-500 border-indigo-500 text-white'
-                    : 'bg-slate-800 border-slate-700 text-slate-300'
+                    ? 'bg-[#0066cc] border-[#0066cc] text-white'
+                    : 'bg-white border-[#e0e0e0] text-[#1d1d1f]'
                 }`}
               >
                 {m.name}
@@ -165,17 +168,15 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         {/* Split */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs text-slate-400">Split between</label>
-            <div className="flex bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+            <label className="text-xs text-[#7a7a7a] font-medium">Split between</label>
+            <div className="flex bg-[#f5f5f7] rounded-lg overflow-hidden border border-[#e0e0e0]">
               {(['equal', 'custom'] as SplitMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setSplitMode(mode)}
                   className={`px-3 py-1 text-xs font-medium transition-colors ${
-                    splitMode === mode
-                      ? 'bg-indigo-500 text-white'
-                      : 'text-slate-400'
+                    splitMode === mode ? 'bg-[#0066cc] text-white rounded-lg' : 'text-[#7a7a7a]'
                   }`}
                 >
                   {mode === 'equal' ? 'Equal' : 'Custom'}
@@ -190,28 +191,28 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
               return (
                 <div
                   key={m.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                    isIn ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-slate-700 bg-slate-800 opacity-50'
+                  className={`flex items-center gap-3 p-3 rounded-[18px] border transition-all ${
+                    isIn ? 'border-[#0066cc]/30 bg-[#0066cc]/5' : 'border-[#e0e0e0] bg-white opacity-50'
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleMember(m.id)}
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                      isIn ? 'bg-indigo-500 border-indigo-500' : 'border-slate-600'
+                      isIn ? 'bg-[#0066cc] border-[#0066cc]' : 'border-[#cccccc]'
                     }`}
                   >
                     {isIn && <span className="text-white text-xs">✓</span>}
                   </button>
-                  <span className="flex-1 text-sm text-white">{m.name}</span>
+                  <span className="flex-1 text-sm text-[#1d1d1f]">{m.name}</span>
                   {isIn && splitMode === 'equal' && (
-                    <span className="text-sm text-indigo-300">{formatINR(perPerson)}</span>
+                    <span className="text-sm text-[#0066cc]">{formatINR(perPerson)}</span>
                   )}
                   {isIn && splitMode === 'custom' && (
                     <div className="flex items-center gap-1">
-                      <span className="text-slate-400 text-xs">₹</span>
+                      <span className="text-[#7a7a7a] text-xs">₹</span>
                       <input
-                        className="w-20 bg-slate-700 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white text-right focus:outline-none focus:border-indigo-500"
+                        className="w-20 bg-white border border-[#e0e0e0] rounded-lg px-2 py-1 text-sm text-[#1d1d1f] text-right focus:outline-none focus:border-[#0066cc]"
                         inputMode="decimal"
                         placeholder="0"
                         value={customAmounts[m.id] ?? ''}
@@ -230,18 +231,18 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         {/* Date & Notes */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs text-slate-400 mb-1">Date</label>
+            <label className="block text-xs text-[#7a7a7a] mb-1 font-medium">Date</label>
             <input
               type="date"
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500"
+              className={inputClass}
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-slate-400 mb-1">Notes</label>
+            <label className="block text-xs text-[#7a7a7a] mb-1 font-medium">Notes</label>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className={inputClass}
               placeholder="Optional"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -250,10 +251,10 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-red-500 text-sm">{error}</p>}
 
         {trip.members.length === 0 && (
-          <p className="text-amber-400 text-sm bg-amber-400/10 rounded-xl p-3">
+          <p className="text-[#ff9500] text-sm bg-[#ff9500]/10 rounded-[11px] p-3">
             Add members in the People tab before logging expenses.
           </p>
         )}
@@ -261,7 +262,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         <button
           type="submit"
           disabled={trip.members.length === 0}
-          className="w-full py-4 rounded-2xl bg-indigo-500 text-white font-semibold text-base disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          className="w-full py-4 rounded-full bg-[#0066cc] text-white font-medium text-base disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
         >
           {isEdit ? 'Save Changes' : 'Add Expense'}
         </button>

@@ -36,8 +36,8 @@ export default function App() {
 
   if (user === undefined || (user !== null && store.loading)) {
     return (
-      <div className="flex items-center justify-center bg-slate-950" style={{ minHeight: '100dvh' }}>
-        <div className="text-slate-500 text-sm">{user === undefined ? 'Loading…' : 'Loading your trips…'}</div>
+      <div className="flex items-center justify-center bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
+        <div className="text-[#7a7a7a] text-sm">{user === undefined ? 'Loading…' : 'Loading your trips…'}</div>
       </div>
     )
   }
@@ -49,7 +49,7 @@ export default function App() {
   const noTrip = store.trips.length === 0
 
   return (
-    <div className="flex flex-col bg-slate-950" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
       <Header
         activeTrip={store.activeTrip}
         trips={store.trips}
@@ -64,13 +64,13 @@ export default function App() {
         {noTrip ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
             <span className="text-6xl mb-4">✈️</span>
-            <h1 className="text-xl font-bold text-white mb-2">Welcome to TripTracker</h1>
-            <p className="text-slate-400 text-sm mb-6">
+            <h1 className="text-xl font-semibold text-[#1d1d1f] mb-2">Welcome to TripTracker</h1>
+            <p className="text-[#7a7a7a] text-sm mb-6">
               Create your first trip to start tracking expenses with your group.
             </p>
             <button
               onClick={() => setShowTripModal(true)}
-              className="px-6 py-3 rounded-2xl bg-indigo-500 text-white font-semibold text-base"
+              className="px-6 py-3 rounded-full bg-[#0066cc] text-white font-medium text-base active:scale-95 transition-transform"
             >
               + Create Trip
             </button>

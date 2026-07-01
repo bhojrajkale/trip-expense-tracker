@@ -35,30 +35,33 @@ export default function TripModal({ onSave, onClose }: Props) {
     })
   }
 
+  const inputClass = "w-full bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc] text-sm"
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60"
+      className="fixed inset-0 z-50 flex items-end bg-black/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full bg-slate-900 rounded-t-2xl border-t border-slate-700 p-6 pb-safe">
-        <div className="w-10 h-1 bg-slate-600 rounded-full mx-auto mb-5" />
-        <h2 className="text-lg font-semibold text-white mb-4">New Trip</h2>
+      <div className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] p-6 pb-safe">
+        <div className="w-10 h-1 bg-[#cccccc] rounded-full mx-auto mb-5" />
+        <h2 className="text-lg font-semibold text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.3px' }}>New Trip</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Trip Name</label>
+            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Trip Name</label>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className={inputClass}
               placeholder="Goa Trip 2025"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={50}
+              autoFocus
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Destination</label>
+            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Destination</label>
             <input
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className={inputClass}
               placeholder="Goa, India"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
@@ -67,9 +70,9 @@ export default function TripModal({ onSave, onClose }: Props) {
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">Total Budget (₹)</label>
+              <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Total Budget (₹)</label>
               <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className={inputClass}
                 placeholder="50000"
                 inputMode="decimal"
                 value={budget}
@@ -77,29 +80,29 @@ export default function TripModal({ onSave, onClose }: Props) {
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">Start Date</label>
+              <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Start Date</label>
               <input
                 type="date"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                className={inputClass}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
 
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-300 font-medium"
+              className="flex-1 py-3 rounded-full border border-[#0066cc] text-[#0066cc] font-medium text-sm active:scale-95 transition-transform"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-semibold"
+              className="flex-1 py-3 rounded-full bg-[#0066cc] text-white font-medium text-sm active:scale-95 transition-transform"
             >
               Create Trip
             </button>

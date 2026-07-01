@@ -15,9 +15,9 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 ## Architecture
 
-**Single-page PWA**: React 19 + TypeScript + Tailwind v4 + Vite. No router — tab state lives in `App.tsx` (`useState<Tab>`). All data is stored in `localStorage` via three keys (`tet_trips`, `tet_expenses`, `tet_active_trip`). Zero network calls — `connect-src 'none'` in the CSP meta tag enforces this at the browser level.
+**Single-page PWA**: React 19 + TypeScript + Tailwind v4 + Vite. No router — tab state lives in `App.tsx` (`useState<Tab>`). All trip/expense data is stored in Firestore; `localStorage` only persists `tet_active_trip` (UI preference). `src/utils/storage.ts` still contains `saveTrips`/`saveExpenses` functions but they are unused — only `loadActiveTripId`/`saveActiveTripId` are called. The CSP in `index.html` allows Firebase endpoints (`connect-src` includes `firestore.googleapis.com`, `identitytoolkit.googleapis.com`, etc.).
 
-**State management** (`src/store/useStore.ts`): A single `useReducer` hook with typed `Action` discriminated union. `useEffect` watchers sync each slice to `localStorage` whenever state changes. `App.tsx` calls `useStore()` once and passes slices/actions as props down to tab components — there is no context provider.
+**State management** (`src/store/useStore.ts`): A single `useReducer` hook with typed `Action` discriminated union. On `uid` change, loads from Firestore; each mutation does an optimistic local dispatch then a fire-and-forget Firestore write. `App.tsx` calls `useStore(uid)` once and passes slices/actions as props down to tab components — there is no context provider.
 
 **Data flow**: `activeTrip` and `activeExpenses` are derived from the store (`trips.find(...)` and `expenses.filter(...)`). Members are embedded inside `Trip` objects, not a separate collection.
 
@@ -30,7 +30,7 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 **Expense splits**: An `Expense` has either `splitAmounts?: SplitAmount[]` (custom, per-member amounts) or uses `splitBetween: string[]` with equal division. If `category === 'custom'`, the display name comes from `customCategory` string rather than `CategoryConfig`.
 
-**Firebase / Cloud sync** (`src/utils/firebase.ts`, `src/utils/auth.ts`, `src/utils/firestore.ts`): Google Auth via `signInWithPopup`. Data lives in Firestore under `users/{uid}/trips` and `users/{uid}/expenses` — flat collections, one document per trip/expense. Auth state is tracked in `App.tsx` via `onAuthStateChanged`; the result (`User | null | undefined`) gates rendering: `undefined` = Firebase still initializing, `null` = signed out → `<LoginScreen />`, `User` = signed in. The store receives `uid` and loads from Firestore on mount; each mutation does an optimistic local dispatch and a fire-and-forget Firestore write. Member mutations (add/remove) use a `stateRef` to read current state synchronously and write the updated trip document. `activeTripId` is still kept in `localStorage` as a UI preference.
+**Firebase / Cloud sync** (`src/utils/firebase.ts`, `src/utils/auth.ts`, `src/utils/firestore.ts`): Google Auth via `signInWithPopup`. Data lives in Firestore under `users/{uid}/trips` and `users/{uid}/expenses` — flat collections, one document per trip/expense. Auth state is tracked in `App.tsx` via `onAuthStateChanged`; the result (`User | null | undefined`) gates rendering: `undefined` = Firebase still initializing, `null` = signed out → `<LoginScreen />`, `User` = signed in. Member mutations (add/remove) use a `stateRef` to read current state synchronously before the async Firestore write, since the dispatch runs after the callback returns. `activeTripId` is kept in `localStorage` as a UI preference only.
 
 **Env vars**: Firebase config uses `import.meta.env.VITE_FIREBASE_*`. Copy `.env.local.example` to `.env.local` for local dev. The GitHub Actions workflow reads the same vars from repository secrets — add all six under Settings → Secrets and variables → Actions before pushing.
 

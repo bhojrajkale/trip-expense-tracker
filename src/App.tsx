@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { onAuthChange, signOutUser, type User } from './utils/auth'
 import { useStore } from './store/useStore'
 import type { Tab, Expense } from './types'
 import Header from './components/Header'
@@ -8,12 +9,20 @@ import Dashboard from './components/dashboard/Dashboard'
 import AddExpenseForm from './components/add/AddExpenseForm'
 import ExpenseList from './components/expenses/ExpenseList'
 import PeopleTab from './components/people/PeopleTab'
+import LoginScreen from './components/auth/LoginScreen'
 
 export default function App() {
-  const store = useStore()
+  // undefined = auth still initializing, null = signed out, User = signed in
+  const [user, setUser] = useState<User | null | undefined>(undefined)
   const [tab, setTab] = useState<Tab>('dashboard')
   const [showTripModal, setShowTripModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
+
+  useEffect(() => {
+    return onAuthChange(setUser)
+  }, [])
+
+  const store = useStore(user?.uid ?? null)
 
   function handleTabChange(t: Tab) {
     setTab(t)
@@ -25,18 +34,29 @@ export default function App() {
     setTab('add')
   }
 
+  if (user === undefined || (user !== null && store.loading)) {
+    return (
+      <div className="flex items-center justify-center bg-slate-950" style={{ minHeight: '100dvh' }}>
+        <div className="text-slate-500 text-sm">{user === undefined ? 'Loading…' : 'Loading your trips…'}</div>
+      </div>
+    )
+  }
+
+  if (user === null) {
+    return <LoginScreen />
+  }
+
   const noTrip = store.trips.length === 0
 
   return (
-    <div
-      className="flex flex-col bg-slate-950"
-      style={{ minHeight: '100dvh' }}
-    >
+    <div className="flex flex-col bg-slate-950" style={{ minHeight: '100dvh' }}>
       <Header
         activeTrip={store.activeTrip}
         trips={store.trips}
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
+        userPhotoURL={user.photoURL}
+        onSignOut={signOutUser}
       />
 
       <main className="flex-1 overflow-y-auto">
@@ -95,9 +115,7 @@ export default function App() {
         )}
       </main>
 
-      {!noTrip && (
-        <TabBar active={tab} onChange={handleTabChange} />
-      )}
+      {!noTrip && <TabBar active={tab} onChange={handleTabChange} />}
 
       {showTripModal && (
         <TripModal

@@ -30,6 +30,20 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 **Expense splits**: An `Expense` has either `splitAmounts?: SplitAmount[]` (custom, per-member amounts) or uses `splitBetween: string[]` with equal division. If `category === 'custom'`, the display name comes from `customCategory` string rather than `CategoryConfig`.
 
+**Firebase / Cloud sync** (`src/utils/firebase.ts`, `src/utils/auth.ts`, `src/utils/firestore.ts`): Google Auth via `signInWithPopup`. Data lives in Firestore under `users/{uid}/trips` and `users/{uid}/expenses` — flat collections, one document per trip/expense. Auth state is tracked in `App.tsx` via `onAuthStateChanged`; the result (`User | null | undefined`) gates rendering: `undefined` = Firebase still initializing, `null` = signed out → `<LoginScreen />`, `User` = signed in. The store receives `uid` and loads from Firestore on mount; each mutation does an optimistic local dispatch and a fire-and-forget Firestore write. Member mutations (add/remove) use a `stateRef` to read current state synchronously and write the updated trip document. `activeTripId` is still kept in `localStorage` as a UI preference.
+
+**Env vars**: Firebase config uses `import.meta.env.VITE_FIREBASE_*`. Copy `.env.local.example` to `.env.local` for local dev. The GitHub Actions workflow reads the same vars from repository secrets — add all six under Settings → Secrets and variables → Actions before pushing.
+
+**Firebase Console setup required** (one-time):
+1. Authentication → Sign-in method → enable Google
+2. Authentication → Settings → Authorized domains → add `bhojrajkale.github.io`
+3. Firestore → Create database (production mode), then set rules:
+   ```
+   match /users/{uid}/{document=**} {
+     allow read, write: if request.auth != null && request.auth.uid == uid;
+   }
+   ```
+
 **Deployment**: GitHub Actions (`.github/workflows/deploy.yml`) runs `npm ci → npm run build → actions/upload-pages-artifact → actions/deploy-pages`. The `vite.config.ts` sets `base: '/trip-expense-tracker/'` for the GitHub Pages subpath. Failing TypeScript will fail the build and cause GitHub Pages to fall back to deploying raw source — always run `npm run build` locally before pushing.
 
 **TypeScript strictness**: `noUnusedLocals` and `noUnusedParameters` are enabled. When hiding UI sections, remove the variables that computed data for them, not just the JSX.

@@ -6,9 +6,11 @@ interface Props {
   trips: Trip[]
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
+  userPhotoURL?: string | null
+  onSignOut?: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, userPhotoURL, onSignOut }: Props) {
   const [showPicker, setShowPicker] = useState(false)
 
   return (
@@ -33,12 +35,25 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip }: P
             <span className="font-semibold text-slate-400">No trip</span>
           )}
         </div>
-        <button
-          onClick={onNewTrip}
-          className="text-indigo-400 text-sm font-medium py-1 px-3 rounded-full border border-indigo-500/40 hover:bg-indigo-500/10 transition-colors"
-        >
-          + New Trip
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onNewTrip}
+            className="text-indigo-400 text-sm font-medium py-1 px-3 rounded-full border border-indigo-500/40 hover:bg-indigo-500/10 transition-colors"
+          >
+            + New Trip
+          </button>
+          {onSignOut && (
+            <button onClick={onSignOut} title="Sign out" className="flex-shrink-0">
+              {userPhotoURL ? (
+                <img src={userPhotoURL} alt="avatar" className="w-7 h-7 rounded-full" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                  G
+                </div>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {showPicker && trips.length > 0 && (

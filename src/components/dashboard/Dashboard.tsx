@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
+import ShareModal from '../ShareModal'
 
 interface Props {
   trip: Trip
@@ -8,6 +10,8 @@ interface Props {
 }
 
 export default function Dashboard({ trip, expenses }: Props) {
+  const [showShare, setShowShare] = useState(false)
+
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
   const remaining = trip.budget - totalSpent
@@ -33,6 +37,14 @@ export default function Dashboard({ trip, expenses }: Props) {
 
   return (
     <div className="p-4 pb-32 space-y-4">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={() => setShowShare(true)}
+          className="flex items-center gap-1.5 text-xs font-medium text-[#0066cc] bg-[#0066cc]/8 border border-[#0066cc]/30 px-3 py-2 rounded-full active:scale-95 transition-transform"
+        >
+          📤 Share
+        </button>
+      </div>
       <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
 
       {/* Per-person spend */}
@@ -80,6 +92,10 @@ export default function Dashboard({ trip, expenses }: Props) {
             ))}
           </div>
         </div>
+      )}
+
+      {showShare && (
+        <ShareModal trip={trip} expenses={expenses} onClose={() => setShowShare(false)} />
       )}
     </div>
   )

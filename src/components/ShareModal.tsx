@@ -78,7 +78,7 @@ export default function ShareModal({ trip, expenses, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/40"
+      className="fixed inset-0 z-[200] flex items-end bg-black/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] max-h-[90dvh] overflow-y-auto">
@@ -190,7 +190,7 @@ export default function ShareModal({ trip, expenses, onClose }: Props) {
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pb-safe pb-6">
+          <div className="flex gap-3" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
             {typeof navigator.share === 'function' && (
               <button
                 onClick={handleShare}

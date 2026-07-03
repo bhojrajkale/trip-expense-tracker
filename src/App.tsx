@@ -157,7 +157,15 @@ export default function App() {
       {showTripModal && (
         <TripModal
           onSave={(trip) => {
-            store.addTrip(trip)
+            // The creator is always the first member, linked to their account
+            const ownerMember = {
+              id: crypto.randomUUID(),
+              name: user.displayName || user.email || 'Me',
+              uid: user.uid,
+              email: user.email ?? undefined,
+              photoURL: user.photoURL ?? undefined,
+            }
+            store.addTrip({ ...trip, members: [ownerMember] })
             store.setActiveTrip(trip.id)
             setShowTripModal(false)
           }}

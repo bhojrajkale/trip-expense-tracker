@@ -25,10 +25,13 @@ export default function InviteModal({ trip, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/40"
+      className="fixed inset-0 z-[200] flex items-end bg-black/40"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] p-6 pb-safe">
+      <div
+        className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] p-6"
+        style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+      >
         <div className="w-10 h-1 bg-[#cccccc] rounded-full mx-auto mb-5" />
         <h2 className="text-lg font-semibold text-[#1d1d1f] mb-1" style={{ letterSpacing: '-0.3px' }}>
           Invite to {trip.name}

@@ -3,20 +3,24 @@ import type { Member, Trip, Expense } from '../../types'
 import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements, computeRawDebts } from '../../utils/settlement'
+import InviteModal from './InviteModal'
 
 interface Props {
   trip: Trip
   expenses: Expense[]
+  currentUid: string
+  isOwner: boolean
   onAddMember: (member: Member) => void
   onRemoveMember: (memberId: string) => void
 }
 
-export default function PeopleTab({ trip, expenses, onAddMember, onRemoveMember }: Props) {
+export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onRemoveMember }: Props) {
   const [manualName, setManualName] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [contactsError, setContactsError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [simplified, setSimplified] = useState(true)
+  const [showInvite, setShowInvite] = useState(false)
 
   const balances = computeBalances(expenses, trip.members)
   const settlements = simplified
@@ -66,6 +70,12 @@ export default function PeopleTab({ trip, expenses, onAddMember, onRemoveMember 
           Members ({trip.members.length})
         </h2>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowInvite(true)}
+            className="px-3 py-2 rounded-full bg-[#0066cc] text-white text-sm font-medium active:scale-95 transition-transform"
+          >
+            + Invite
+          </button>
           {isContactsSupported() && (
             <button
               onClick={handlePickContacts}
@@ -125,17 +135,30 @@ export default function PeopleTab({ trip, expenses, onAddMember, onRemoveMember 
                 className="bg-white rounded-[18px] border border-[#e0e0e0] overflow-hidden"
               >
                 <div className="flex items-center gap-3 p-3">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
-                    style={{ backgroundColor: color }}
-                  >
-                    {initials(member.name)}
-                  </div>
+                  {member.photoURL ? (
+                    <img
+                      src={member.photoURL}
+                      alt={member.name}
+                      className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                      style={{ backgroundColor: color }}
+                    >
+                      {initials(member.name)}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#1d1d1f] truncate">{member.name}</div>
-                    {member.phone && (
+                    <div className="text-sm font-medium text-[#1d1d1f] truncate">
+                      {member.name}
+                      {member.uid === currentUid && <span className="text-[#7a7a7a] font-normal"> (you)</span>}
+                    </div>
+                    {member.uid ? (
+                      <div className="text-xs text-[#0066cc]">● linked account</div>
+                    ) : member.phone ? (
                       <div className="text-xs text-[#7a7a7a]">{member.phone}</div>
-                    )}
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <div
@@ -149,7 +172,7 @@ export default function PeopleTab({ trip, expenses, onAddMember, onRemoveMember 
                       {bal > 0 ? 'gets back' : bal < 0 ? 'owes' : 'settled'}
                     </div>
                   </div>
-                  {isConfirming ? (
+                  {!isOwner ? null : isConfirming ? (
                     <div className="flex gap-1">
                       <button
                         onClick={() => setConfirmRemove(null)}
@@ -237,6 +260,7 @@ export default function PeopleTab({ trip, expenses, onAddMember, onRemoveMember 
         </div>
       )}
 
+      {showInvite && <InviteModal trip={trip} onClose={() => setShowInvite(false)} />}
     </div>
   )
 }

@@ -7,11 +7,12 @@ interface Props {
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
   onDeleteTrip: (id: string) => void
+  currentUid: string
   userPhotoURL?: string | null
   onSignOut?: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onDeleteTrip, userPhotoURL, onSignOut }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut }: Props) {
   const [showPicker, setShowPicker] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -84,7 +85,9 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onD
                 <div className="text-[#7a7a7a] text-xs mt-0.5">{trip.destination}</div>
               </button>
 
-              {confirmDelete === trip.id ? (
+              {trip.ownerUid !== currentUid ? (
+                <span className="text-[10px] text-[#7a7a7a] px-3 py-3">shared</span>
+              ) : confirmDelete === trip.id ? (
                 <div className="flex items-center gap-1 pr-2">
                   <button
                     onClick={() => setConfirmDelete(null)}

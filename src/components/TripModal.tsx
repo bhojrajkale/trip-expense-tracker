@@ -3,7 +3,8 @@ import type { Trip } from '../types'
 import { todayISO } from '../utils/format'
 
 interface Props {
-  onSave: (trip: Trip) => void
+  // ownerUid/memberUids are stamped by the store when the trip is created
+  onSave: (trip: Omit<Trip, 'ownerUid' | 'memberUids'>) => void
   onClose: () => void
 }
 

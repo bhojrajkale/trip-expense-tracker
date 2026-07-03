@@ -7,11 +7,13 @@ import { downloadCSV } from '../../utils/export'
 interface Props {
   expenses: Expense[]
   trip: Trip
+  currentUid: string
+  isOwner: boolean
   onEdit: (expense: Expense) => void
   onDelete: (id: string) => void
 }
 
-export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props) {
+export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdit, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date))
@@ -24,6 +26,13 @@ export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props)
 
   const memberName = (id: string) =>
     trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  const addedByName = (uid: string) =>
+    trip.members.find((m) => m.uid === uid)?.name ?? null
+
+  // Rules only allow the creator (or trip owner) to modify an expense —
+  // hide controls that would be denied server-side anyway
+  const canModify = (exp: Expense) => isOwner || exp.createdByUid === currentUid
 
   if (expenses.length === 0) {
     return (
@@ -81,6 +90,9 @@ export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props)
                       </div>
                       <div className="text-xs text-[#7a7a7a] mt-0.5 truncate">
                         Paid by {memberName(exp.paidBy)} · Split {exp.splitBetween.length} ways
+                        {exp.createdByUid !== currentUid && addedByName(exp.createdByUid) && (
+                          <> · Added by {addedByName(exp.createdByUid)}</>
+                        )}
                       </div>
                       {exp.notes && (
                         <div className="text-xs text-[#7a7a7a] mt-0.5 truncate">{exp.notes}</div>
@@ -88,7 +100,7 @@ export default function ExpenseList({ expenses, trip, onEdit, onDelete }: Props)
                     </div>
                   </div>
 
-                  {isConfirming ? (
+                  {!canModify(exp) ? null : isConfirming ? (
                     <div className="flex border-t border-[#f0f0f0]">
                       <button
                         onClick={() => setConfirmDelete(null)}

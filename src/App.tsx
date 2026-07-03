@@ -10,6 +10,22 @@ import AddExpenseForm from './components/add/AddExpenseForm'
 import ExpenseList from './components/expenses/ExpenseList'
 import PeopleTab from './components/people/PeopleTab'
 import LoginScreen from './components/auth/LoginScreen'
+import JoinTripScreen from './components/join/JoinTripScreen'
+
+const PENDING_JOIN_KEY = 'tet_pending_join'
+
+// Read the ?join= invite param once at startup. Persisted to sessionStorage
+// so the pending join survives the Google sign-in popup/redirect.
+function readPendingJoin(): string | null {
+  const params = new URLSearchParams(location.search)
+  const fromUrl = params.get('join')
+  if (fromUrl) {
+    sessionStorage.setItem(PENDING_JOIN_KEY, fromUrl)
+    history.replaceState(null, '', location.pathname)
+    return fromUrl
+  }
+  return sessionStorage.getItem(PENDING_JOIN_KEY)
+}
 
 export default function App() {
   // undefined = auth still initializing, null = signed out, User = signed in
@@ -17,6 +33,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard')
   const [showTripModal, setShowTripModal] = useState(false)
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
+  const [pendingJoin, setPendingJoin] = useState<string | null>(readPendingJoin)
 
   useEffect(() => {
     return onAuthChange(setUser)
@@ -34,6 +51,12 @@ export default function App() {
     setTab('add')
   }
 
+  function handleJoinDone(tripId: string | null) {
+    sessionStorage.removeItem(PENDING_JOIN_KEY)
+    setPendingJoin(null)
+    if (tripId) store.setActiveTrip(tripId)
+  }
+
   if (user === undefined || (user !== null && store.loading)) {
     return (
       <div className="flex items-center justify-center bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
@@ -43,10 +66,15 @@ export default function App() {
   }
 
   if (user === null) {
-    return <LoginScreen />
+    return <LoginScreen joinPending={!!pendingJoin} />
+  }
+
+  if (pendingJoin) {
+    return <JoinTripScreen tripId={pendingJoin} user={user} onDone={handleJoinDone} />
   }
 
   const noTrip = store.trips.length === 0
+  const isOwner = store.activeTrip?.ownerUid === user.uid
 
   return (
     <div className="flex flex-col bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
@@ -56,6 +84,7 @@ export default function App() {
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
         onDeleteTrip={store.deleteTrip}
+        currentUid={user.uid}
         userPhotoURL={user.photoURL}
         onSignOut={signOutUser}
       />
@@ -85,8 +114,11 @@ export default function App() {
                 trip={store.activeTrip}
                 editExpense={editingExpense}
                 onSave={(expense) => {
-                  if (editingExpense) store.updateExpense(expense)
-                  else store.addExpense(expense)
+                  if (editingExpense) {
+                    store.updateExpense({ ...expense, createdByUid: editingExpense.createdByUid })
+                  } else {
+                    store.addExpense(expense)
+                  }
                   setEditingExpense(undefined)
                   setTab('expenses')
                 }}
@@ -100,6 +132,8 @@ export default function App() {
               <ExpenseList
                 expenses={store.activeExpenses}
                 trip={store.activeTrip}
+                currentUid={user.uid}
+                isOwner={isOwner}
                 onEdit={handleEditExpense}
                 onDelete={store.deleteExpense}
               />
@@ -108,6 +142,8 @@ export default function App() {
               <PeopleTab
                 trip={store.activeTrip}
                 expenses={store.activeExpenses}
+                currentUid={user.uid}
+                isOwner={isOwner}
                 onAddMember={(member) => store.addMember(store.activeTrip!.id, member)}
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
               />

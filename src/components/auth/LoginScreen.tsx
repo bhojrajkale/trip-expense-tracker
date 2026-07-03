@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { signInWithGoogle } from '../../utils/auth'
 
-export default function LoginScreen() {
+interface Props {
+  joinPending?: boolean
+}
+
+export default function LoginScreen({ joinPending }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -21,7 +25,9 @@ export default function LoginScreen() {
       <span className="text-6xl mb-5">✈️</span>
       <h1 className="text-2xl font-semibold text-[#1d1d1f] mb-2" style={{ letterSpacing: '-0.3px' }}>TripTracker</h1>
       <p className="text-[#7a7a7a] text-[17px] mb-10 max-w-xs leading-relaxed">
-        Sign in to sync your trips and expenses across all your devices.
+        {joinPending
+          ? "You've been invited to a trip. Sign in with Google to join it."
+          : 'Sign in to sync your trips and expenses across all your devices.'}
       </p>
 
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}

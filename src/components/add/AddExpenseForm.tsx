@@ -6,7 +6,8 @@ import { todayISO, formatINR } from '../../utils/format'
 interface Props {
   trip: Trip
   editExpense?: Expense
-  onSave: (expense: Expense) => void
+  // createdByUid is stamped by the caller (new: current uid, edit: preserved)
+  onSave: (expense: Omit<Expense, 'createdByUid'>) => void
   onCancel: () => void
 }
 

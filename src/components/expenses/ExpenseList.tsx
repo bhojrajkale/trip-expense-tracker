@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { Expense, Trip } from '../../types'
+import type { Category, Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
-import { getCategoryConfig } from '../CategoryConfig'
+import { CATEGORIES, getCategoryConfig } from '../CategoryConfig'
 import { downloadCSV } from '../../utils/export'
 
 interface Props {
@@ -15,8 +15,21 @@ interface Props {
 
 export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdit, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [catFilter, setCatFilter] = useState<Category | null>(null)
+  const [personFilter, setPersonFilter] = useState<string | null>(null)
 
-  const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date))
+  // Only offer category chips for categories that actually occur in this trip
+  const usedCategories = CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id))
+  const hasFilter = catFilter !== null || personFilter !== null
+
+  const filtered = expenses.filter(
+    (e) =>
+      (!catFilter || e.category === catFilter) &&
+      (!personFilter || e.paidBy === personFilter)
+  )
+  const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
+
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
 
   const grouped = sorted.reduce<Record<string, Expense[]>>((acc, exp) => {
     if (!acc[exp.date]) acc[exp.date] = []
@@ -44,16 +57,83 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
     )
   }
 
+  const chipBase =
+    'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap active:scale-95 transition-transform'
+  const chipOn = 'bg-[#0066cc] text-white border-[#0066cc]'
+  const chipOff = 'bg-white text-[#1d1d1f] border-[#e0e0e0]'
+
   return (
     <div className="space-y-4 p-4 pb-32">
-      <div className="flex justify-end">
+      {/* Category filter */}
+      {usedCategories.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
+          <button
+            onClick={() => setCatFilter(null)}
+            className={`${chipBase} ${catFilter === null ? chipOn : chipOff}`}
+          >
+            All
+          </button>
+          {usedCategories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCatFilter(catFilter === c.id ? null : c.id)}
+              className={`${chipBase} ${catFilter === c.id ? chipOn : chipOff}`}
+            >
+              {c.emoji} {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Person (paid by) filter */}
+      {trip.members.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
+          <button
+            onClick={() => setPersonFilter(null)}
+            className={`${chipBase} ${personFilter === null ? chipOn : chipOff}`}
+          >
+            Paid by anyone
+          </button>
+          {trip.members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setPersonFilter(personFilter === m.id ? null : m.id)}
+              className={`${chipBase} ${personFilter === m.id ? chipOn : chipOff}`}
+            >
+              {m.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        {hasFilter ? (
+          <span className="text-xs text-[#7a7a7a]">
+            {filtered.length} expense{filtered.length !== 1 ? 's' : ''} · {formatINR(filteredTotal)}
+          </span>
+        ) : (
+          <span />
+        )}
         <button
-          onClick={() => downloadCSV(trip, expenses)}
+          onClick={() => downloadCSV(trip, filtered)}
           className="flex items-center gap-1.5 text-xs font-medium text-[#0066cc] bg-[#0066cc]/8 border border-[#0066cc]/30 px-3 py-2 rounded-full active:scale-95 transition-transform"
         >
           <span>↓</span> Export CSV
         </button>
       </div>
+
+      {filtered.length === 0 && (
+        <div className="flex flex-col items-center py-14 text-[#7a7a7a]">
+          <span className="text-4xl mb-3">🔍</span>
+          <p className="text-sm mb-4">No matching expenses.</p>
+          <button
+            onClick={() => { setCatFilter(null); setPersonFilter(null) }}
+            className="px-4 py-2 rounded-full border border-[#0066cc] text-[#0066cc] text-sm font-medium active:scale-95 transition-transform"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {Object.entries(grouped).map(([date, dayExpenses]) => (
         <div key={date}>

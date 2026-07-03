@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import type { Category, Expense, Trip } from '../../types'
+import type { Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
-import { CATEGORIES, getCategoryConfig } from '../CategoryConfig'
+import { getCategoryConfig } from '../CategoryConfig'
 import { downloadCSV } from '../../utils/export'
 
 interface Props {
@@ -15,18 +15,11 @@ interface Props {
 
 export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdit, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [catFilter, setCatFilter] = useState<Category | null>(null)
   const [personFilter, setPersonFilter] = useState<string | null>(null)
 
-  // Only offer category chips for categories that actually occur in this trip
-  const usedCategories = CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id))
-  const hasFilter = catFilter !== null || personFilter !== null
+  const hasFilter = personFilter !== null
 
-  const filtered = expenses.filter(
-    (e) =>
-      (!catFilter || e.category === catFilter) &&
-      (!personFilter || e.paidBy === personFilter)
-  )
+  const filtered = expenses.filter((e) => !personFilter || e.paidBy === personFilter)
   const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
 
   const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
@@ -64,27 +57,6 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
 
   return (
     <div className="space-y-4 p-4 pb-32">
-      {/* Category filter */}
-      {usedCategories.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
-          <button
-            onClick={() => setCatFilter(null)}
-            className={`${chipBase} ${catFilter === null ? chipOn : chipOff}`}
-          >
-            All
-          </button>
-          {usedCategories.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setCatFilter(catFilter === c.id ? null : c.id)}
-              className={`${chipBase} ${catFilter === c.id ? chipOn : chipOff}`}
-            >
-              {c.emoji} {c.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Person (paid by) filter */}
       {trip.members.length > 1 && (
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
@@ -127,10 +99,10 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
           <span className="text-4xl mb-3">🔍</span>
           <p className="text-sm mb-4">No matching expenses.</p>
           <button
-            onClick={() => { setCatFilter(null); setPersonFilter(null) }}
+            onClick={() => setPersonFilter(null)}
             className="px-4 py-2 rounded-full border border-[#0066cc] text-[#0066cc] text-sm font-medium active:scale-95 transition-transform"
           >
-            Clear filters
+            Clear filter
           </button>
         </div>
       )}

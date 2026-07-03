@@ -201,14 +201,22 @@ export function useStore(uid: string | null) {
     if (expense) removeExpense(expense.tripId, id).catch(console.error)
   }, [])
 
-  const addMember = useCallback((tripId: string, member: Member) => {
-    dispatch({ type: 'ADD_MEMBER', tripId, member })
+  // Accepts a batch: adding contacts one-by-one would base each Firestore
+  // write on a stale trip copy, so only the last member would survive
+  const addMembers = useCallback((tripId: string, members: Member[]) => {
+    if (members.length === 0) return
+    members.forEach((member) => dispatch({ type: 'ADD_MEMBER', tripId, member }))
     const trip = stateRef.current.trips.find((t) => t.id === tripId)
     if (trip) {
-      const updated = { ...trip, members: [...trip.members, member] }
+      const updated = { ...trip, members: [...trip.members, ...members] }
       saveTrip({ ...updated, memberUids: memberUidsFor(updated) }).catch(console.error)
     }
   }, [])
+
+  const addMember = useCallback(
+    (tripId: string, member: Member) => addMembers(tripId, [member]),
+    [addMembers]
+  )
 
   const removeMember = useCallback((tripId: string, memberId: string) => {
     dispatch({ type: 'REMOVE_MEMBER', tripId, memberId })
@@ -234,6 +242,7 @@ export function useStore(uid: string | null) {
     updateExpense,
     deleteExpense,
     addMember,
+    addMembers,
     removeMember,
   }
 }

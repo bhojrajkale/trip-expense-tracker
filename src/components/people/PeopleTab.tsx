@@ -11,10 +11,11 @@ interface Props {
   currentUid: string
   isOwner: boolean
   onAddMember: (member: Member) => void
+  onAddMembers: (members: Member[]) => void
   onRemoveMember: (memberId: string) => void
 }
 
-export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onRemoveMember }: Props) {
+export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onAddMembers, onRemoveMember }: Props) {
   const [manualName, setManualName] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [contactsError, setContactsError] = useState('')
@@ -30,14 +31,11 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
   async function handlePickContacts() {
     setContactsError('')
     try {
-      const members = await pickContacts()
-      if (members.length === 0) return
-      for (const m of members) {
-        const exists = trip.members.some(
-          (existing) => existing.name.toLowerCase() === m.name.toLowerCase()
-        )
-        if (!exists) onAddMember(m)
-      }
+      const picked = await pickContacts()
+      const fresh = picked.filter(
+        (m) => !trip.members.some((existing) => existing.name.toLowerCase() === m.name.toLowerCase())
+      )
+      if (fresh.length > 0) onAddMembers(fresh)
     } catch {
       setContactsError('Could not access contacts. Add manually instead.')
     }

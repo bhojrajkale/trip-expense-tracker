@@ -145,6 +145,7 @@ export default function App() {
                 currentUid={user.uid}
                 isOwner={isOwner}
                 onAddMember={(member) => store.addMember(store.activeTrip!.id, member)}
+                onAddMembers={(members) => store.addMembers(store.activeTrip!.id, members)}
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
               />
             )}

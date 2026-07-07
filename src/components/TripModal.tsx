@@ -3,17 +3,20 @@ import type { Trip } from '../types'
 import { todayISO } from '../utils/format'
 
 interface Props {
+  editTrip?: Trip
   // ownerUid/memberUids are stamped by the store when the trip is created
   onSave: (trip: Omit<Trip, 'ownerUid' | 'memberUids'>) => void
   onClose: () => void
 }
 
-export default function TripModal({ onSave, onClose }: Props) {
-  const [name, setName] = useState('')
-  const [destination, setDestination] = useState('')
-  const [budget, setBudget] = useState('')
-  const [startDate, setStartDate] = useState(todayISO())
+export default function TripModal({ editTrip, onSave, onClose }: Props) {
+  const [name, setName] = useState(editTrip?.name ?? '')
+  const [destination, setDestination] = useState(editTrip?.destination ?? '')
+  const [budget, setBudget] = useState(editTrip ? String(editTrip.budget) : '')
+  const [startDate, setStartDate] = useState(editTrip?.startDate ?? todayISO())
   const [error, setError] = useState('')
+
+  const isEditing = !!editTrip
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -27,12 +30,12 @@ export default function TripModal({ onSave, onClose }: Props) {
       return setError('Enter a valid budget (₹1 – ₹99,99,999)')
 
     onSave({
-      id: crypto.randomUUID(),
+      id: editTrip?.id ?? crypto.randomUUID(),
       name: trimName,
       destination: trimDest,
       startDate,
       budget: budgetNum,
-      members: [],
+      members: editTrip?.members ?? [],
     })
   }
 
@@ -48,7 +51,9 @@ export default function TripModal({ onSave, onClose }: Props) {
         style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
       >
         <div className="w-10 h-1 bg-[#cccccc] rounded-full mx-auto mb-5" />
-        <h2 className="text-lg font-semibold text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.3px' }}>New Trip</h2>
+        <h2 className="text-lg font-semibold text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.3px' }}>
+          {isEditing ? 'Edit Trip' : 'New Trip'}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -72,26 +77,24 @@ export default function TripModal({ onSave, onClose }: Props) {
               maxLength={50}
             />
           </div>
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Total Budget (₹)</label>
-              <input
-                className={inputClass}
-                placeholder="50000"
-                inputMode="decimal"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Start Date</label>
-              <input
-                type="date"
-                className={inputClass}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Start Date</label>
+            <input
+              type="date"
+              className={inputClass}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Total Budget (₹)</label>
+            <input
+              className={inputClass}
+              placeholder="50000"
+              inputMode="decimal"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+            />
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -108,7 +111,7 @@ export default function TripModal({ onSave, onClose }: Props) {
               type="submit"
               className="flex-1 py-3 rounded-full bg-[#0066cc] text-white font-medium text-sm active:scale-95 transition-transform"
             >
-              Create Trip
+              {isEditing ? 'Save Changes' : 'Create Trip'}
             </button>
           </div>
         </form>

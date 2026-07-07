@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { onAuthChange, signOutUser, type User } from './utils/auth'
 import { useStore } from './store/useStore'
-import type { Tab, Expense } from './types'
+import type { Tab, Expense, Trip } from './types'
 import Header from './components/Header'
 import TabBar from './components/TabBar'
 import TripModal from './components/TripModal'
@@ -38,6 +38,7 @@ export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined)
   const [tab, setTab] = useState<Tab>('dashboard')
   const [showTripModal, setShowTripModal] = useState(false)
+  const [editingTrip, setEditingTrip] = useState<Trip | undefined>()
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
   const [pendingJoin, setPendingJoin] = useState<string | null>(readPendingJoin)
 
@@ -93,6 +94,7 @@ export default function App() {
         trips={store.trips}
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
+        onEditTrip={(trip) => setEditingTrip(trip)}
         onDeleteTrip={store.deleteTrip}
         currentUid={user.uid}
         userPhotoURL={user.photoURL}
@@ -181,6 +183,17 @@ export default function App() {
             setShowTripModal(false)
           }}
           onClose={() => setShowTripModal(false)}
+        />
+      )}
+
+      {editingTrip && (
+        <TripModal
+          editTrip={editingTrip}
+          onSave={(updated) => {
+            store.updateTrip({ ...updated, ownerUid: editingTrip.ownerUid, memberUids: editingTrip.memberUids })
+            setEditingTrip(undefined)
+          }}
+          onClose={() => setEditingTrip(undefined)}
         />
       )}
     </div>

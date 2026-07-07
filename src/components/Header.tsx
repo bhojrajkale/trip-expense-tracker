@@ -6,13 +6,14 @@ interface Props {
   trips: Trip[]
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
+  onEditTrip: (trip: Trip) => void
   onDeleteTrip: (id: string) => void
   currentUid: string
   userPhotoURL?: string | null
   onSignOut?: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onEditTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut }: Props) {
   const [showPicker, setShowPicker] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -20,6 +21,12 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onD
     onDeleteTrip(id)
     setConfirmDelete(null)
     setShowPicker(false)
+  }
+
+  function handleEdit(trip: Trip) {
+    onEditTrip(trip)
+    setShowPicker(false)
+    setConfirmDelete(null)
   }
 
   return (
@@ -103,12 +110,21 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onD
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}
-                  className="text-[#cccccc] hover:text-red-400 px-3 py-3 text-base transition-colors"
-                >
-                  🗑
-                </button>
+                <div className="flex items-center pr-1">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEdit(trip) }}
+                    className="text-[#0066cc] px-2.5 py-3 text-sm transition-opacity active:opacity-50"
+                    title="Edit trip"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}
+                    className="text-[#cccccc] hover:text-red-400 px-2.5 py-3 text-base transition-colors"
+                  >
+                    🗑
+                  </button>
+                </div>
               )}
             </div>
           ))}

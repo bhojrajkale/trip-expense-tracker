@@ -10,7 +10,13 @@ import AddExpenseForm from './components/add/AddExpenseForm'
 import ExpenseList from './components/expenses/ExpenseList'
 import PeopleTab from './components/people/PeopleTab'
 import LoginScreen from './components/auth/LoginScreen'
+import UnauthorizedScreen from './components/auth/UnauthorizedScreen'
 import JoinTripScreen from './components/join/JoinTripScreen'
+
+const ALLOWED_UIDS = (import.meta.env.VITE_ALLOWED_UIDS ?? '')
+  .split(',')
+  .map((s: string) => s.trim())
+  .filter(Boolean)
 
 const PENDING_JOIN_KEY = 'tet_pending_join'
 
@@ -67,6 +73,10 @@ export default function App() {
 
   if (user === null) {
     return <LoginScreen joinPending={!!pendingJoin} />
+  }
+
+  if (ALLOWED_UIDS.length > 0 && !ALLOWED_UIDS.includes(user.uid)) {
+    return <UnauthorizedScreen email={user.email} />
   }
 
   if (pendingJoin) {

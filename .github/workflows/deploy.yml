@@ -31,6 +31,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_ALLOWED_UIDS: ${{ secrets.VITE_ALLOWED_UIDS }}
       - name: Deploy Firestore rules
         if: env.FIREBASE_TOKEN != ''
         run: npx --yes firebase-tools deploy --only firestore:rules --project "$VITE_FIREBASE_PROJECT_ID"

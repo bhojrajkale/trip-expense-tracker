@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
-import { getCategoryConfig } from '../CategoryConfig'
+import { getCategoryConfig, CATEGORIES } from '../CategoryConfig'
 import { downloadCSV } from '../../utils/export'
 
 interface Props {
@@ -16,11 +16,23 @@ interface Props {
 export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdit, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [personFilter, setPersonFilter] = useState<string | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
 
-  const hasFilter = personFilter !== null
+  const q = searchQuery.trim().toLowerCase()
+  const hasFilter = personFilter !== null || categoryFilter !== null || q !== ''
 
-  const filtered = expenses.filter((e) => !personFilter || e.paidBy === personFilter)
+  const filtered = expenses.filter((e) => {
+    if (personFilter && e.paidBy !== personFilter) return false
+    if (categoryFilter && e.category !== categoryFilter) return false
+    if (q) {
+      const cat = getCategoryConfig(e.category)
+      const label = (e.category === 'custom' ? (e.customCategory ?? '') : cat.label).toLowerCase()
+      if (!label.includes(q) && !e.notes.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
   const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
 
   const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
@@ -56,8 +68,30 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
   const chipOn = 'bg-[#0066cc] text-white border-[#0066cc]'
   const chipOff = 'bg-white text-[#1d1d1f] border-[#e0e0e0]'
 
+  // Only show category chips for categories that appear in this trip's expenses
+  const usedCategories = CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id))
+
   return (
     <div className="space-y-4 p-4 pb-32">
+      {/* Search */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a7a7a] text-sm">🔍</span>
+        <input
+          className="w-full bg-white border border-[#e0e0e0] rounded-full pl-9 pr-4 py-2.5 text-sm text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc]"
+          placeholder="Search notes or category…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7a7a7a] text-base leading-none active:opacity-50"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Person (paid by) filter */}
       {trip.members.length > 1 && (
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
@@ -74,6 +108,27 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
               className={`${chipBase} ${personFilter === m.id ? chipOn : chipOff}`}
             >
               {m.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Category filter */}
+      {usedCategories.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4">
+          <button
+            onClick={() => setCategoryFilter(null)}
+            className={`${chipBase} ${categoryFilter === null ? chipOn : chipOff}`}
+          >
+            All categories
+          </button>
+          {usedCategories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setCategoryFilter(categoryFilter === c.id ? null : c.id)}
+              className={`${chipBase} ${categoryFilter === c.id ? chipOn : chipOff}`}
+            >
+              {c.emoji} {c.label}
             </button>
           ))}
         </div>
@@ -100,10 +155,10 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
           <span className="text-4xl mb-3">🔍</span>
           <p className="text-sm mb-4">No matching expenses.</p>
           <button
-            onClick={() => setPersonFilter(null)}
+            onClick={() => { setPersonFilter(null); setCategoryFilter(null); setSearchQuery('') }}
             className="px-4 py-2 rounded-full border border-[#0066cc] text-[#0066cc] text-sm font-medium active:scale-95 transition-transform"
           >
-            Clear filter
+            Clear all filters
           </button>
         </div>
       )}

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { Expense, Trip, SplitAmount } from '../../types'
 import { CATEGORIES } from '../CategoryConfig'
 import { todayISO, formatINR } from '../../utils/format'
+import { compressToDataUrl } from '../../utils/imageCompress'
 
 interface Props {
   trip: Trip
@@ -15,6 +16,9 @@ type SplitMode = 'equal' | 'custom'
 
 export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: Props) {
   const isEdit = !!editExpense
+
+  // Pre-generate ID so we can use it as the Storage filename before submit
+  const [expenseId] = useState(() => editExpense?.id ?? crypto.randomUUID())
 
   const [amount, setAmount] = useState(editExpense ? String(editExpense.amount) : '')
   const [category, setCategory] = useState(editExpense?.category ?? 'food')
@@ -36,6 +40,12 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
   const [notes, setNotes] = useState(editExpense?.notes ?? '')
   const [error, setError] = useState('')
 
+  // Receipt state
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(editExpense?.receiptPhotoUrl)
+  const [receiptUploading, setReceiptUploading] = useState(false)
+  const [receiptError, setReceiptError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const amountNum = parseFloat(amount) || 0
   const perPerson = splitBetween.length > 0 ? amountNum / splitBetween.length : 0
 
@@ -43,6 +53,22 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     setSplitBetween((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     )
+  }
+
+  async function handleReceiptSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setReceiptUploading(true)
+    setReceiptError('')
+    try {
+      const dataUrl = await compressToDataUrl(file)
+      setReceiptUrl(dataUrl)
+    } catch {
+      setReceiptError('Could not process image. Please try again.')
+    } finally {
+      setReceiptUploading(false)
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -69,7 +95,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     }
 
     onSave({
-      id: editExpense?.id ?? crypto.randomUUID(),
+      id: expenseId,
       tripId: trip.id,
       amount: amt,
       category,
@@ -79,6 +105,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
       splitAmounts,
       date,
       notes: notes.trim().slice(0, 200),
+      receiptPhotoUrl: receiptUrl,
     })
   }
 
@@ -252,6 +279,53 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
         </div>
 
+        {/* Receipt */}
+        <div>
+          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Receipt</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleReceiptSelect}
+          />
+
+          {receiptUrl ? (
+            <div className="relative w-24 h-24">
+              <img
+                src={receiptUrl}
+                alt="Receipt"
+                className="w-24 h-24 rounded-[11px] object-cover border border-[#e0e0e0]"
+              />
+              <button
+                type="button"
+                onClick={() => setReceiptUrl(undefined)}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-[#1d1d1f] rounded-full flex items-center justify-center text-white text-xs leading-none active:scale-90 transition-transform"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={receiptUploading}
+              className="flex items-center gap-2 px-4 py-3 rounded-[11px] border border-dashed border-[#cccccc] bg-white text-[#7a7a7a] text-sm active:scale-95 transition-transform disabled:opacity-50"
+            >
+              {receiptUploading ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-[#0066cc] border-t-transparent rounded-full animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>📷 Add Receipt</>
+              )}
+            </button>
+          )}
+          {receiptError && <p className="text-red-500 text-xs mt-1">{receiptError}</p>}
+        </div>
+
         {error && <p className="text-red-500 text-sm">{error}</p>}
 
         {trip.members.length === 0 && (
@@ -262,7 +336,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         <button
           type="submit"
-          disabled={trip.members.length === 0}
+          disabled={trip.members.length === 0 || receiptUploading}
           className="w-full py-4 rounded-full bg-[#0066cc] text-white font-medium text-base disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
         >
           {isEdit ? 'Save Changes' : 'Add Expense'}

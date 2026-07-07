@@ -50,6 +50,7 @@ export interface Expense {
   splitAmounts?: SplitAmount[]
   date: string
   notes: string
+  receiptPhotoUrl?: string
 }
 
 export type Tab = 'dashboard' | 'add' | 'expenses' | 'people'

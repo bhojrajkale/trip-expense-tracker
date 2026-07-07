@@ -16,6 +16,7 @@ interface Props {
 export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdit, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [personFilter, setPersonFilter] = useState<string | null>(null)
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
 
   const hasFilter = personFilter !== null
 
@@ -107,6 +108,29 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
         </div>
       )}
 
+      {/* Full-screen receipt viewer */}
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex flex-col items-center justify-center"
+          onClick={() => setViewingReceipt(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-3xl leading-none active:opacity-70"
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
+            onClick={() => setViewingReceipt(null)}
+          >
+            ✕
+          </button>
+          <img
+            src={viewingReceipt}
+            alt="Receipt"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            style={{ maxHeight: '90dvh', padding: '48px 16px 32px' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {Object.entries(grouped).map(([date, dayExpenses]) => (
         <div key={date}>
           <div className="flex items-center justify-between mb-2">
@@ -138,7 +162,18 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
                         <span className="text-sm font-medium text-[#1d1d1f]">
                           {exp.category === 'custom' && exp.customCategory ? exp.customCategory : cat.label}
                         </span>
-                        <span className="text-sm font-semibold text-[#1d1d1f]">{formatINR(exp.amount)}</span>
+                        <div className="flex items-center gap-2">
+                          {exp.receiptPhotoUrl && (
+                            <button
+                              onClick={() => setViewingReceipt(exp.receiptPhotoUrl!)}
+                              className="text-[#0066cc] text-base leading-none active:opacity-50"
+                              title="View receipt"
+                            >
+                              📷
+                            </button>
+                          )}
+                          <span className="text-sm font-semibold text-[#1d1d1f]">{formatINR(exp.amount)}</span>
+                        </div>
                       </div>
                       <div className="text-xs text-[#7a7a7a] mt-0.5 truncate">
                         Paid by {memberName(exp.paidBy)} · Split {exp.splitBetween.length} ways

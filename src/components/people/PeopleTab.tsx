@@ -13,9 +13,10 @@ interface Props {
   onAddMember: (member: Member) => void
   onAddMembers: (members: Member[]) => void
   onRemoveMember: (memberId: string) => void
+  onToggleSettlementPaid: (from: string, to: string) => void
 }
 
-export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onAddMembers, onRemoveMember }: Props) {
+export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onAddMembers, onRemoveMember, onToggleSettlementPaid }: Props) {
   const [manualName, setManualName] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [contactsError, setContactsError] = useState('')
@@ -27,6 +28,13 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
   const settlements = simplified
     ? minimizeSettlements(balances)
     : computeRawDebts(expenses)
+
+  const paidSettlements = trip.paidSettlements ?? []
+  const isPaid = (from: string, to: string) =>
+    paidSettlements.some((p) => p.from === from && p.to === to)
+
+  const unpaidCount = settlements.filter((s) => !isPaid(s.from, s.to)).length
+  const allPaid = settlements.length > 0 && unpaidCount === 0
 
   async function handlePickContacts() {
     setContactsError('')
@@ -227,26 +235,54 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
             </div>
           </div>
 
-          {settlements.length === 0 ? (
+          {settlements.length === 0 || allPaid ? (
             <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-[18px] p-4">
               <span className="text-2xl">✅</span>
               <p className="text-sm text-green-600 font-medium">All settled up!</p>
             </div>
-          ) : (
+          ) : null}
+
+          {settlements.length > 0 && (
             <div className="space-y-2">
-              {settlements.map((s, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 bg-white rounded-[18px] p-3 border border-[#e0e0e0]"
-                >
-                  <div className="flex-1 text-sm text-[#1d1d1f] min-w-0">
-                    <span className="text-red-500 font-medium">{memberName(s.from)}</span>
-                    <span className="text-[#7a7a7a] mx-2">pays</span>
-                    <span className="text-green-600 font-medium">{memberName(s.to)}</span>
+              {settlements.map((s, i) => {
+                const paid = isPaid(s.from, s.to)
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 rounded-[18px] p-3 border transition-colors ${
+                      paid
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-white border-[#e0e0e0]'
+                    }`}
+                  >
+                    <div className={`flex-1 text-sm min-w-0 ${paid ? 'line-through opacity-50' : 'text-[#1d1d1f]'}`}>
+                      <span className={paid ? 'text-[#7a7a7a]' : 'text-red-500 font-medium'}>{memberName(s.from)}</span>
+                      <span className="text-[#7a7a7a] mx-2">pays</span>
+                      <span className={paid ? 'text-[#7a7a7a]' : 'text-green-600 font-medium'}>{memberName(s.to)}</span>
+                    </div>
+                    <span className={`text-sm flex-shrink-0 font-semibold ${paid ? 'text-green-600 line-through opacity-50' : 'text-[#1d1d1f]'}`}>
+                      {formatINR(s.amount)}
+                    </span>
+                    {(() => {
+                      const receiverUid = trip.members.find((m) => m.id === s.to)?.uid
+                      const canMark = isOwner || (!!receiverUid && receiverUid === currentUid)
+                      if (!canMark) return null
+                      return (
+                        <button
+                          onClick={() => onToggleSettlementPaid(s.from, s.to)}
+                          className={`flex-shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-full border active:scale-95 transition-transform ${
+                            paid
+                              ? 'text-[#7a7a7a] border-[#e0e0e0] bg-white'
+                              : 'text-green-600 border-green-300 bg-green-50'
+                          }`}
+                        >
+                          {paid ? 'Undo' : '✓ Paid'}
+                        </button>
+                      )
+                    })()}
                   </div>
-                  <span className="text-[#1d1d1f] font-semibold text-sm flex-shrink-0">{formatINR(s.amount)}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 

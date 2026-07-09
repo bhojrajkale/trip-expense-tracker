@@ -175,6 +175,21 @@ export function useStore(uid: string | null) {
     saveTrip(trip).catch(console.error)
   }, [])
 
+  const toggleSettlementPaid = useCallback((tripId: string, from: string, to: string) => {
+    const trip = stateRef.current.trips.find((t) => t.id === tripId)
+    if (!trip) return
+    const paid = trip.paidSettlements ?? []
+    const idx = paid.findIndex((p) => p.from === from && p.to === to)
+    const updated: Trip = {
+      ...trip,
+      paidSettlements: idx >= 0
+        ? paid.filter((_, i) => i !== idx)
+        : [...paid, { from, to, paidAt: new Date().toISOString().slice(0, 10) }],
+    }
+    dispatch({ type: 'UPDATE_TRIP', trip: updated })
+    saveTrip(updated).catch(console.error)
+  }, [])
+
   const deleteTrip = useCallback((id: string) => {
     dispatch({ type: 'DELETE_TRIP', id })
     removeTrip(id).catch(console.error)
@@ -244,5 +259,6 @@ export function useStore(uid: string | null) {
     addMember,
     addMembers,
     removeMember,
+    toggleSettlementPaid,
   }
 }

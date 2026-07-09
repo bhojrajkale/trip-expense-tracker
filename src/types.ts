@@ -17,6 +17,12 @@ export interface Member {
   photoURL?: string
 }
 
+export interface PaidSettlement {
+  from: string   // member id
+  to: string     // member id
+  paidAt: string // ISO date string
+}
+
 export interface Trip {
   id: string
   name: string
@@ -29,6 +35,7 @@ export interface Trip {
   // Always derived: unique([ownerUid, ...members with uid]). Drives the
   // "my trips" query and Firestore security rules.
   memberUids: string[]
+  paidSettlements?: PaidSettlement[]
 }
 
 export interface SplitAmount {

@@ -159,6 +159,7 @@ export default function App() {
                 onAddMember={(member) => store.addMember(store.activeTrip!.id, member)}
                 onAddMembers={(members) => store.addMembers(store.activeTrip!.id, members)}
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
+                onToggleSettlementPaid={(from, to) => store.toggleSettlementPaid(store.activeTrip!.id, from, to)}
               />
             )}
           </>

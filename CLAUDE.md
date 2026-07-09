@@ -21,6 +21,14 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 **Data flow**: `activeTrip` and `activeExpenses` are derived in the store (`trips.find(...)`, `expenses.filter(...)`). Members are embedded inside `Trip` objects, not a separate Firestore collection. `Trip` has `ownerUid` and `memberUids` (all Google-authed members' UIDs) which drives Firestore security rules and the "my trips" query.
 
+**Edit trip** (`src/components/TripModal.tsx`): The same modal handles both create and edit. When `editTrip?: Trip` prop is provided, fields pre-populate, the existing `id`/`members` are preserved, and title/button text change accordingly. `App.tsx` tracks `editingTrip` state; `Header.tsx` shows ✏️ beside 🗑 for owned trips in the dropdown.
+
+**Paid settlements** (`Trip.paidSettlements?: PaidSettlement[]`): Each entry stores `{ from, to, paidAt }` (member IDs + ISO date). Matched against computed settlements by `from+to` pair. The "✓ Paid" / "Undo" button in `PeopleTab` is gated to the receiving member (`s.to` member's `uid === currentUid`) or the trip owner. `toggleSettlementPaid` in the store finds the existing entry, adds or removes it, then calls `saveTrip`. The 💬 settlement share reminder button on each unpaid row calls `shareOrCopy()` with a pre-built message and disappears once marked paid.
+
+**PDF export** (`src/utils/printPDF.ts`): `printTripSummary(trip, expenses)` builds a self-contained HTML string with inline styles, opens it via `window.open()`, then calls `window.print()` after 250 ms. On iOS Safari the print dialog includes "Save to Files" → PDF. Zero new npm dependencies. Button sits on the Dashboard next to 📤 Share.
+
+**Expense search + category filter** (`src/components/expenses/ExpenseList.tsx`): A search bar filters by notes or category label; category chips only appear for categories actually present in the trip. Person filter, category filter, and search stack with AND logic.
+
 **Settlement logic** (`src/utils/settlement.ts`):
 - `computeBalances` — builds `Map<memberId, netBalance>` from all expenses
 - `minimizeSettlements` — greedy creditor/debtor matching (Splitwise "Simplify"); fewest transactions

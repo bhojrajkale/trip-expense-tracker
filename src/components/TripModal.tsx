@@ -39,7 +39,7 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
     })
   }
 
-  const inputClass = "w-full bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc] text-sm"
+  const inputClass = "w-full bg-[var(--surface)] border border-[var(--hairline)] rounded-[11px] px-4 py-3 text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--action)] text-sm"
 
   return (
     <div
@@ -47,17 +47,17 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] p-6"
+        className="w-full bg-[var(--bg)] rounded-t-[18px] border-t border-[var(--hairline)] p-6"
         style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
       >
-        <div className="w-10 h-1 bg-[#cccccc] rounded-full mx-auto mb-5" />
-        <h2 className="text-lg font-semibold text-[#1d1d1f] mb-4" style={{ letterSpacing: '-0.3px' }}>
+        <div className="w-10 h-1 bg-[var(--disabled)] rounded-full mx-auto mb-5" />
+        <h2 className="text-lg font-semibold text-[var(--ink)] mb-4" style={{ letterSpacing: '-0.3px' }}>
           {isEditing ? 'Edit Trip' : 'New Trip'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Trip Name</label>
+            <label className="block text-xs text-[var(--muted)] mb-1.5 font-medium">Trip Name</label>
             <input
               className={inputClass}
               placeholder="Goa Trip 2025"
@@ -68,7 +68,7 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Destination</label>
+            <label className="block text-xs text-[var(--muted)] mb-1.5 font-medium">Destination</label>
             <input
               className={inputClass}
               placeholder="Goa, India"
@@ -78,7 +78,7 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Start Date</label>
+            <label className="block text-xs text-[var(--muted)] mb-1.5 font-medium">Start Date</label>
             <input
               type="date"
               className={inputClass}
@@ -87,7 +87,7 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs text-[#7a7a7a] mb-1.5 font-medium">Total Budget (₹)</label>
+            <label className="block text-xs text-[var(--muted)] mb-1.5 font-medium">Total Budget (₹)</label>
             <input
               className={inputClass}
               placeholder="50000"
@@ -97,19 +97,19 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-[var(--red)] text-sm">{error}</p>}
 
           <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 rounded-full border border-[#0066cc] text-[#0066cc] font-medium text-sm active:scale-95 transition-transform"
+              className="flex-1 py-3 rounded-full border border-[var(--action)] text-[var(--action)] font-medium text-sm active:scale-95 transition-transform"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 rounded-full bg-[#0066cc] text-white font-medium text-sm active:scale-95 transition-transform"
+              className="flex-1 py-3 rounded-full bg-[var(--action)] text-white font-medium text-sm active:scale-95 transition-transform"
             >
               {isEditing ? 'Save Changes' : 'Create Trip'}
             </button>

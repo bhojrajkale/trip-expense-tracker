@@ -55,7 +55,7 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
 
   if (expenses.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-[#7a7a7a]">
+      <div className="flex flex-col items-center justify-center py-20 text-[var(--muted)]">
         <span className="text-5xl mb-3">📋</span>
         <p className="text-sm">No expenses yet.</p>
         <p className="text-xs mt-1">Tap + to add your first expense.</p>
@@ -65,8 +65,8 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
 
   const chipBase =
     'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap active:scale-95 transition-transform'
-  const chipOn = 'bg-[#0066cc] text-white border-[#0066cc]'
-  const chipOff = 'bg-white text-[#1d1d1f] border-[#e0e0e0]'
+  const chipOn = 'bg-[var(--action)] text-white border-[var(--action)]'
+  const chipOff = 'bg-[var(--surface)] text-[var(--ink)] border-[var(--hairline)]'
 
   // Only show category chips for categories that appear in this trip's expenses
   const usedCategories = CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id))
@@ -75,9 +75,9 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
     <div className="space-y-4 p-4 pb-32">
       {/* Search */}
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a7a7a] text-sm">🔍</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] text-sm">🔍</span>
         <input
-          className="w-full bg-white border border-[#e0e0e0] rounded-full pl-9 pr-4 py-2.5 text-sm text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc]"
+          className="w-full bg-[var(--surface)] border border-[var(--hairline)] rounded-full pl-9 pr-4 py-2.5 text-sm text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--action)]"
           placeholder="Search notes or category…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -85,7 +85,7 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7a7a7a] text-base leading-none active:opacity-50"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] text-base leading-none active:opacity-50"
           >
             ✕
           </button>
@@ -136,7 +136,7 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
 
       <div className="flex items-center justify-between">
         {hasFilter ? (
-          <span className="text-xs text-[#7a7a7a]">
+          <span className="text-xs text-[var(--muted)]">
             {filtered.length} expense{filtered.length !== 1 ? 's' : ''} · {formatINR(filteredTotal)}
           </span>
         ) : (
@@ -144,19 +144,19 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
         )}
         <button
           onClick={() => downloadCSV(trip, filtered)}
-          className="flex items-center gap-1.5 text-xs font-medium text-[#0066cc] bg-[#0066cc]/8 border border-[#0066cc]/30 px-3 py-2 rounded-full active:scale-95 transition-transform"
+          className="flex items-center gap-1.5 text-xs font-medium text-[var(--action)] bg-[var(--action-tint)] border border-[var(--action-border)] px-3 py-2 rounded-full active:scale-95 transition-transform"
         >
           <span>↓</span> Export CSV
         </button>
       </div>
 
       {filtered.length === 0 && (
-        <div className="flex flex-col items-center py-14 text-[#7a7a7a]">
+        <div className="flex flex-col items-center py-14 text-[var(--muted)]">
           <span className="text-4xl mb-3">🔍</span>
           <p className="text-sm mb-4">No matching expenses.</p>
           <button
             onClick={() => { setPersonFilter(null); setCategoryFilter(null); setSearchQuery('') }}
-            className="px-4 py-2 rounded-full border border-[#0066cc] text-[#0066cc] text-sm font-medium active:scale-95 transition-transform"
+            className="px-4 py-2 rounded-full border border-[var(--action)] text-[var(--action)] text-sm font-medium active:scale-95 transition-transform"
           >
             Clear all filters
           </button>
@@ -189,10 +189,10 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
       {Object.entries(grouped).map(([date, dayExpenses]) => (
         <div key={date}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-[#7a7a7a] uppercase tracking-wider">
+            <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
               {formatDate(date)}
             </span>
-            <span className="text-xs text-[#7a7a7a]">
+            <span className="text-xs text-[var(--muted)]">
               {formatINR(dayExpenses.reduce((s, e) => s + e.amount, 0))}
             </span>
           </div>
@@ -203,7 +203,7 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
               return (
                 <div
                   key={exp.id}
-                  className="bg-white rounded-[18px] overflow-hidden border border-[#e0e0e0]"
+                  className="bg-[var(--surface)] rounded-[18px] overflow-hidden border border-[var(--hairline)]"
                 >
                   <div className="flex items-center gap-3 p-3">
                     <div
@@ -214,60 +214,60 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-[#1d1d1f]">
+                        <span className="text-sm font-medium text-[var(--ink)]">
                           {exp.category === 'custom' && exp.customCategory ? exp.customCategory : cat.label}
                         </span>
                         <div className="flex items-center gap-2">
                           {exp.receiptPhotoUrl && (
                             <button
                               onClick={() => setViewingReceipt(exp.receiptPhotoUrl!)}
-                              className="text-[#0066cc] text-base leading-none active:opacity-50"
+                              className="text-[var(--action)] text-base leading-none active:opacity-50"
                               title="View receipt"
                             >
                               📷
                             </button>
                           )}
-                          <span className="text-sm font-semibold text-[#1d1d1f]">{formatINR(exp.amount)}</span>
+                          <span className="text-sm font-semibold text-[var(--ink)]">{formatINR(exp.amount)}</span>
                         </div>
                       </div>
-                      <div className="text-xs text-[#7a7a7a] mt-0.5 truncate">
+                      <div className="text-xs text-[var(--muted)] mt-0.5 truncate">
                         Paid by {memberName(exp.paidBy)} · Split {exp.splitBetween.length} ways
                         {exp.createdByUid !== currentUid && addedByName(exp.createdByUid) && (
                           <> · Added by {addedByName(exp.createdByUid)}</>
                         )}
                       </div>
                       {exp.notes && (
-                        <div className="text-xs text-[#7a7a7a] mt-0.5 truncate">{exp.notes}</div>
+                        <div className="text-xs text-[var(--muted)] mt-0.5 truncate">{exp.notes}</div>
                       )}
                     </div>
                   </div>
 
                   {!canModify(exp) ? null : isConfirming ? (
-                    <div className="flex border-t border-[#f0f0f0]">
+                    <div className="flex border-t border-[var(--divider)]">
                       <button
                         onClick={() => setConfirmDelete(null)}
-                        className="flex-1 py-2.5 text-sm text-[#333333] border-r border-[#f0f0f0]"
+                        className="flex-1 py-2.5 text-sm text-[var(--ink)] border-r border-[var(--divider)]"
                       >
                         Keep
                       </button>
                       <button
                         onClick={() => { onDelete(exp.id); setConfirmDelete(null) }}
-                        className="flex-1 py-2.5 text-sm text-red-500 font-medium"
+                        className="flex-1 py-2.5 text-sm text-[var(--red)] font-medium"
                       >
                         Delete
                       </button>
                     </div>
                   ) : (
-                    <div className="flex border-t border-[#f0f0f0]">
+                    <div className="flex border-t border-[var(--divider)]">
                       <button
                         onClick={() => onEdit(exp)}
-                        className="flex-1 py-2.5 text-xs text-[#0066cc] border-r border-[#f0f0f0]"
+                        className="flex-1 py-2.5 text-xs text-[var(--action)] border-r border-[var(--divider)]"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => setConfirmDelete(exp.id)}
-                        className="flex-1 py-2.5 text-xs text-red-400"
+                        className="flex-1 py-2.5 text-xs text-[var(--red)]"
                       >
                         Delete
                       </button>

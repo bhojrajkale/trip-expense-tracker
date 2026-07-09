@@ -1,5 +1,87 @@
 @import "tailwindcss";
 
+/* ── Design tokens ───────────────────────────────────────────────────────── */
+:root, [data-theme=light] {
+  --bg:                  #f5f5f7;
+  --surface:             #ffffff;
+  --surface-2:           #f5f5f7;
+  --ink:                 #1d1d1f;
+  --muted:               #7a7a7a;
+  --hairline:            #e0e0e0;
+  --divider:             #f0f0f0;
+  --disabled:            #cccccc;
+  --action:              #0066cc;
+  --action-tint:         rgba(0, 102, 204, 0.08);
+  --action-tint-5:       rgba(0, 102, 204, 0.05);
+  --action-border:       rgba(0, 102, 204, 0.30);
+  --action-border-sub:   rgba(0, 102, 204, 0.20);
+  --action-border-half:  rgba(0, 102, 204, 0.50);
+  --green:               #16a34a;
+  --green-tint:          #f0fdf4;
+  --green-border:        #bbf7d0;
+  --red:                 #ef4444;
+  --red-border:          #fecaca;
+  --orange:              #ff9500;
+  --orange-tint:         rgba(255, 149, 0, 0.10);
+  --surface-glass:       rgba(255, 255, 255, 0.80);
+  --surface-glass-nav:   rgba(255, 255, 255, 0.90);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    --bg:                  #1c1c1e;
+    --surface:             #2c2c2e;
+    --surface-2:           #3a3a3c;
+    --ink:                 #f2f2f7;
+    --muted:               #8e8e93;
+    --hairline:            #38383a;
+    --divider:             #3a3a3c;
+    --disabled:            #48484a;
+    --action:              #0a84ff;
+    --action-tint:         rgba(10, 132, 255, 0.12);
+    --action-tint-5:       rgba(10, 132, 255, 0.08);
+    --action-border:       rgba(10, 132, 255, 0.30);
+    --action-border-sub:   rgba(10, 132, 255, 0.20);
+    --action-border-half:  rgba(10, 132, 255, 0.50);
+    --green:               #30d158;
+    --green-tint:          rgba(48, 209, 88, 0.10);
+    --green-border:        rgba(48, 209, 88, 0.25);
+    --red:                 #ff453a;
+    --red-border:          rgba(255, 69, 58, 0.25);
+    --orange:              #ff9f0a;
+    --orange-tint:         rgba(255, 159, 10, 0.10);
+    --surface-glass:       rgba(28, 28, 30, 0.80);
+    --surface-glass-nav:   rgba(28, 28, 30, 0.90);
+  }
+}
+
+[data-theme=dark] {
+  --bg:                  #1c1c1e;
+  --surface:             #2c2c2e;
+  --surface-2:           #3a3a3c;
+  --ink:                 #f2f2f7;
+  --muted:               #8e8e93;
+  --hairline:            #38383a;
+  --divider:             #3a3a3c;
+  --disabled:            #48484a;
+  --action:              #0a84ff;
+  --action-tint:         rgba(10, 132, 255, 0.12);
+  --action-tint-5:       rgba(10, 132, 255, 0.08);
+  --action-border:       rgba(10, 132, 255, 0.30);
+  --action-border-sub:   rgba(10, 132, 255, 0.20);
+  --action-border-half:  rgba(10, 132, 255, 0.50);
+  --green:               #30d158;
+  --green-tint:          rgba(48, 209, 88, 0.10);
+  --green-border:        rgba(48, 209, 88, 0.25);
+  --red:                 #ff453a;
+  --red-border:          rgba(255, 69, 58, 0.25);
+  --orange:              #ff9f0a;
+  --orange-tint:         rgba(255, 159, 10, 0.10);
+  --surface-glass:       rgba(28, 28, 30, 0.80);
+  --surface-glass-nav:   rgba(28, 28, 30, 0.90);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -11,8 +93,8 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #0f172a;
-    color: #f1f5f9;
+    background-color: var(--bg);
+    color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
   }

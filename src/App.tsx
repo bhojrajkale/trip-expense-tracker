@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { onAuthChange, signOutUser, type User } from './utils/auth'
 import { useStore } from './store/useStore'
 import type { Tab, Expense, Trip } from './types'
@@ -10,6 +10,7 @@ import AddExpenseForm from './components/add/AddExpenseForm'
 import ExpenseList from './components/expenses/ExpenseList'
 import PeopleTab from './components/people/PeopleTab'
 import LoginScreen from './components/auth/LoginScreen'
+import { getInitialTheme, applyTheme, type Theme } from './utils/theme'
 import UnauthorizedScreen from './components/auth/UnauthorizedScreen'
 import JoinTripScreen from './components/join/JoinTripScreen'
 
@@ -37,6 +38,9 @@ export default function App() {
   // undefined = auth still initializing, null = signed out, User = signed in
   const [user, setUser] = useState<User | null | undefined>(undefined)
   const [tab, setTab] = useState<Tab>('dashboard')
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  useLayoutEffect(() => applyTheme(theme), [theme])
+
   const [showTripModal, setShowTripModal] = useState(false)
   const [editingTrip, setEditingTrip] = useState<Trip | undefined>()
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
@@ -66,8 +70,8 @@ export default function App() {
 
   if (user === undefined || (user !== null && store.loading)) {
     return (
-      <div className="flex items-center justify-center bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
-        <div className="text-[#7a7a7a] text-sm">{user === undefined ? 'Loading…' : 'Loading your trips…'}</div>
+      <div className="flex items-center justify-center bg-[var(--bg)]" style={{ minHeight: '100dvh' }}>
+        <div className="text-[var(--muted)] text-sm">{user === undefined ? 'Loading…' : 'Loading your trips…'}</div>
       </div>
     )
   }
@@ -88,7 +92,7 @@ export default function App() {
   const isOwner = store.activeTrip?.ownerUid === user.uid
 
   return (
-    <div className="flex flex-col bg-[#f5f5f7]" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col bg-[var(--bg)]" style={{ minHeight: '100dvh' }}>
       <Header
         activeTrip={store.activeTrip}
         trips={store.trips}
@@ -99,19 +103,21 @@ export default function App() {
         currentUid={user.uid}
         userPhotoURL={user.photoURL}
         onSignOut={signOutUser}
+        isDark={theme === 'dark'}
+        onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
       />
 
       <main className="flex-1 overflow-y-auto">
         {noTrip ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
             <span className="text-6xl mb-4">✈️</span>
-            <h1 className="text-xl font-semibold text-[#1d1d1f] mb-2">Welcome to TripTracker</h1>
-            <p className="text-[#7a7a7a] text-sm mb-6">
+            <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">Welcome to TripTracker</h1>
+            <p className="text-[var(--muted)] text-sm mb-6">
               Create your first trip to start tracking expenses with your group.
             </p>
             <button
               onClick={() => setShowTripModal(true)}
-              className="px-6 py-3 rounded-full bg-[#0066cc] text-white font-medium text-base active:scale-95 transition-transform"
+              className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
             >
               + Create Trip
             </button>

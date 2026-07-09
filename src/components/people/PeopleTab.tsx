@@ -81,27 +81,27 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
   return (
     <div className="p-4 pb-32 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-[#1d1d1f]" style={{ letterSpacing: '-0.2px' }}>
+        <h2 className="font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.2px' }}>
           Members ({trip.members.length})
         </h2>
         <div className="flex gap-2">
           <button
             onClick={() => setShowInvite(true)}
-            className="px-3 py-2 rounded-full bg-[#0066cc] text-white text-sm font-medium active:scale-95 transition-transform"
+            className="px-3 py-2 rounded-full bg-[var(--action)] text-white text-sm font-medium active:scale-95 transition-transform"
           >
             + Invite
           </button>
           {isContactsSupported() && (
             <button
               onClick={handlePickContacts}
-              className="px-3 py-2 rounded-full bg-[#0066cc]/10 text-[#0066cc] text-sm font-medium border border-[#0066cc]/20 active:scale-95 transition-transform"
+              className="px-3 py-2 rounded-full bg-[var(--action-tint)] text-[var(--action)] text-sm font-medium border border-[var(--action-border-sub)] active:scale-95 transition-transform"
             >
               + Contacts
             </button>
           )}
           <button
             onClick={() => setShowManual(!showManual)}
-            className="px-3 py-2 rounded-full bg-white text-[#1d1d1f] text-sm font-medium border border-[#e0e0e0] active:scale-95 transition-transform"
+            className="px-3 py-2 rounded-full bg-[var(--surface)] text-[var(--ink)] text-sm font-medium border border-[var(--hairline)] active:scale-95 transition-transform"
           >
             + Manual
           </button>
@@ -109,13 +109,13 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
       </div>
 
       {contactsError && (
-        <p className="text-[#ff9500] text-sm bg-[#ff9500]/10 rounded-[11px] p-3">{contactsError}</p>
+        <p className="text-[var(--orange)] text-sm bg-[var(--orange-tint)] rounded-[11px] p-3">{contactsError}</p>
       )}
 
       {showManual && (
         <div className="flex gap-2">
           <input
-            className="flex-1 bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc] text-sm"
+            className="flex-1 bg-[var(--surface)] border border-[var(--hairline)] rounded-[11px] px-4 py-3 text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--action)] text-sm"
             placeholder="Person's name"
             value={manualName}
             onChange={(e) => setManualName(e.target.value)}
@@ -125,7 +125,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
           />
           <button
             onClick={handleManualAdd}
-            className="px-4 py-3 rounded-[11px] bg-[#0066cc] text-white text-sm font-medium active:scale-95 transition-transform"
+            className="px-4 py-3 rounded-[11px] bg-[var(--action)] text-white text-sm font-medium active:scale-95 transition-transform"
           >
             Add
           </button>
@@ -133,7 +133,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
       )}
 
       {trip.members.length === 0 ? (
-        <div className="flex flex-col items-center py-10 text-[#7a7a7a]">
+        <div className="flex flex-col items-center py-10 text-[var(--muted)]">
           <span className="text-5xl mb-3">👥</span>
           <p className="text-sm">No members yet.</p>
           <p className="text-xs mt-1">Add from Contacts or manually.</p>
@@ -147,7 +147,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
             return (
               <div
                 key={member.id}
-                className="bg-white rounded-[18px] border border-[#e0e0e0] overflow-hidden"
+                className="bg-[var(--surface)] rounded-[18px] border border-[var(--hairline)] overflow-hidden"
               >
                 <div className="flex items-center gap-3 p-3">
                   {member.photoURL ? (
@@ -165,25 +165,25 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#1d1d1f] truncate">
+                    <div className="text-sm font-medium text-[var(--ink)] truncate">
                       {member.name}
-                      {member.uid === currentUid && <span className="text-[#7a7a7a] font-normal"> (you)</span>}
+                      {member.uid === currentUid && <span className="text-[var(--muted)] font-normal"> (you)</span>}
                     </div>
                     {member.uid ? (
-                      <div className="text-xs text-[#0066cc]">● linked account</div>
+                      <div className="text-xs text-[var(--action)]">● linked account</div>
                     ) : member.phone ? (
-                      <div className="text-xs text-[#7a7a7a]">{member.phone}</div>
+                      <div className="text-xs text-[var(--muted)]">{member.phone}</div>
                     ) : null}
                   </div>
                   <div className="text-right">
                     <div
                       className={`text-sm font-semibold ${
-                        bal > 0 ? 'text-green-600' : bal < 0 ? 'text-red-500' : 'text-[#7a7a7a]'
+                        bal > 0 ? 'text-[var(--green)]' : bal < 0 ? 'text-[var(--red)]' : 'text-[var(--muted)]'
                       }`}
                     >
                       {bal > 0 ? '+' : ''}{formatINR(Math.round(bal))}
                     </div>
-                    <div className="text-[10px] text-[#7a7a7a]">
+                    <div className="text-[10px] text-[var(--muted)]">
                       {bal > 0 ? 'gets back' : bal < 0 ? 'owes' : 'settled'}
                     </div>
                   </div>
@@ -191,7 +191,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                     <div className="flex gap-1">
                       <button
                         onClick={() => setConfirmRemove(null)}
-                        className="text-xs text-[#7a7a7a] px-2 py-1 rounded-lg border border-[#e0e0e0]"
+                        className="text-xs text-[var(--muted)] px-2 py-1 rounded-lg border border-[var(--hairline)]"
                       >
                         No
                       </button>
@@ -200,7 +200,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                           onRemoveMember(member.id)
                           setConfirmRemove(null)
                         }}
-                        className="text-xs text-red-500 px-2 py-1 rounded-lg border border-red-200"
+                        className="text-xs text-[var(--red)] px-2 py-1 rounded-lg border border-[var(--red-border)]"
                       >
                         Remove
                       </button>
@@ -208,7 +208,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                   ) : (
                     <button
                       onClick={() => setConfirmRemove(member.id)}
-                      className="text-[#cccccc] text-lg px-1 active:opacity-50"
+                      className="text-[var(--disabled)] text-lg px-1 active:opacity-50"
                     >
                       ×
                     </button>
@@ -223,10 +223,10 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
       {(settlements.length > 0 || (expenses.length > 0 && trip.members.length > 0)) && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-[#7a7a7a] uppercase tracking-wider">
+            <h3 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider">
               Who pays whom
             </h3>
-            <div className="flex bg-[#f5f5f7] rounded-lg overflow-hidden border border-[#e0e0e0]">
+            <div className="flex bg-[var(--bg)] rounded-lg overflow-hidden border border-[var(--hairline)]">
               {(['Simplified', 'Original'] as const).map((mode) => {
                 const isActive = mode === 'Simplified' ? simplified : !simplified
                 return (
@@ -234,7 +234,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                     key={mode}
                     onClick={() => setSimplified(mode === 'Simplified')}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
-                      isActive ? 'bg-[#0066cc] text-white rounded-lg' : 'text-[#7a7a7a]'
+                      isActive ? 'bg-[var(--action)] text-white rounded-lg' : 'text-[var(--muted)]'
                     }`}
                   >
                     {mode}
@@ -245,9 +245,9 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
           </div>
 
           {settlements.length === 0 || allPaid ? (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-[18px] p-4">
+            <div className="flex items-center gap-2 bg-[var(--green-tint)] border border-[var(--green-border)] rounded-[18px] p-4">
               <span className="text-2xl">✅</span>
-              <p className="text-sm text-green-600 font-medium">All settled up!</p>
+              <p className="text-sm text-[var(--green)] font-medium">All settled up!</p>
             </div>
           ) : null}
 
@@ -260,16 +260,16 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                     key={i}
                     className={`flex items-center gap-3 rounded-[18px] p-3 border transition-colors ${
                       paid
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-white border-[#e0e0e0]'
+                        ? 'bg-[var(--green-tint)] border-[var(--green-border)]'
+                        : 'bg-[var(--surface)] border-[var(--hairline)]'
                     }`}
                   >
-                    <div className={`flex-1 text-sm min-w-0 ${paid ? 'line-through opacity-50' : 'text-[#1d1d1f]'}`}>
-                      <span className={paid ? 'text-[#7a7a7a]' : 'text-red-500 font-medium'}>{memberName(s.from)}</span>
-                      <span className="text-[#7a7a7a] mx-2">pays</span>
-                      <span className={paid ? 'text-[#7a7a7a]' : 'text-green-600 font-medium'}>{memberName(s.to)}</span>
+                    <div className={`flex-1 text-sm min-w-0 ${paid ? 'line-through opacity-50' : 'text-[var(--ink)]'}`}>
+                      <span className={paid ? 'text-[var(--muted)]' : 'text-[var(--red)] font-medium'}>{memberName(s.from)}</span>
+                      <span className="text-[var(--muted)] mx-2">pays</span>
+                      <span className={paid ? 'text-[var(--muted)]' : 'text-[var(--green)] font-medium'}>{memberName(s.to)}</span>
                     </div>
-                    <span className={`text-sm flex-shrink-0 font-semibold ${paid ? 'text-green-600 line-through opacity-50' : 'text-[#1d1d1f]'}`}>
+                    <span className={`text-sm flex-shrink-0 font-semibold ${paid ? 'text-[var(--green)] line-through opacity-50' : 'text-[var(--ink)]'}`}>
                       {formatINR(s.amount)}
                     </span>
                     {(() => {
@@ -280,7 +280,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                           {!paid && (
                             <button
                               onClick={() => handleShareSettlement(s.from, s.to, s.amount)}
-                              className="text-[#0066cc] text-base px-1.5 py-1 rounded-full active:opacity-50 transition-opacity"
+                              className="text-[var(--action)] text-base px-1.5 py-1 rounded-full active:opacity-50 transition-opacity"
                               title="Send reminder"
                             >
                               💬
@@ -291,8 +291,8 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                               onClick={() => onToggleSettlementPaid(s.from, s.to)}
                               className={`text-xs font-medium px-2.5 py-1.5 rounded-full border active:scale-95 transition-transform ${
                                 paid
-                                  ? 'text-[#7a7a7a] border-[#e0e0e0] bg-white'
-                                  : 'text-green-600 border-green-300 bg-green-50'
+                                  ? 'text-[var(--muted)] border-[var(--hairline)] bg-[var(--surface)]'
+                                  : 'text-[var(--green)] border-[var(--green-border)] bg-[var(--green-tint)]'
                               }`}
                             >
                               {paid ? 'Undo' : '✓ Paid'}
@@ -308,7 +308,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
           )}
 
           {!simplified && (
-            <p className="text-[10px] text-[#7a7a7a] mt-2 text-center">
+            <p className="text-[10px] text-[var(--muted)] mt-2 text-center">
               Original debts per expense pair · not minimized
             </p>
           )}
@@ -318,7 +318,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
       {showInvite && <InviteModal trip={trip} onClose={() => setShowInvite(false)} />}
 
       {toast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#1d1d1f] text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg z-[200] whitespace-nowrap">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[var(--ink)] text-[var(--bg)] text-sm font-medium px-4 py-2.5 rounded-full shadow-lg z-[200] whitespace-nowrap">
           {toast}
         </div>
       )}

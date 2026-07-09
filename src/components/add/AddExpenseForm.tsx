@@ -109,27 +109,27 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     })
   }
 
-  const inputClass = "w-full bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 text-[#1d1d1f] placeholder-[#7a7a7a] focus:outline-none focus:border-[#0066cc] text-sm"
+  const inputClass = "w-full bg-[var(--surface)] border border-[var(--hairline)] rounded-[11px] px-4 py-3 text-[var(--ink)] placeholder-[var(--muted)] focus:outline-none focus:border-[var(--action)] text-sm"
 
   return (
     <div className="p-4 space-y-4 pb-32">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[#1d1d1f]" style={{ letterSpacing: '-0.3px' }}>
+        <h2 className="text-lg font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.3px' }}>
           {isEdit ? 'Edit Expense' : 'Add Expense'}
         </h2>
         {isEdit && (
-          <button onClick={onCancel} className="text-[#0066cc] text-sm">Cancel</button>
+          <button onClick={onCancel} className="text-[var(--action)] text-sm">Cancel</button>
         )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Amount */}
-        <div className="bg-white border border-[#e0e0e0] rounded-[18px] p-4">
-          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Amount (₹)</label>
+        <div className="bg-[var(--surface)] border border-[var(--hairline)] rounded-[18px] p-4">
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Amount (₹)</label>
           <div className="flex items-center gap-2">
-            <span className="text-2xl text-[#7a7a7a]">₹</span>
+            <span className="text-2xl text-[var(--muted)]">₹</span>
             <input
-              className="flex-1 bg-transparent text-3xl font-semibold text-[#1d1d1f] placeholder-[#cccccc] focus:outline-none"
+              className="flex-1 bg-transparent text-3xl font-semibold text-[var(--ink)] placeholder-[var(--disabled)] focus:outline-none"
               placeholder="0"
               inputMode="decimal"
               value={amount}
@@ -142,7 +142,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         {/* Category */}
         <div>
-          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Category</label>
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Category</label>
           <div className="grid grid-cols-3 gap-2">
             {CATEGORIES.map((cat) => (
               <button
@@ -151,8 +151,8 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
                 onClick={() => setCategory(cat.id)}
                 className={`flex flex-col items-center gap-1 py-3 rounded-[18px] border text-xs font-medium transition-all ${
                   category === cat.id
-                    ? 'border-[#0066cc] bg-[#0066cc]/8 text-[#0066cc]'
-                    : 'border-[#e0e0e0] bg-white text-[#7a7a7a]'
+                    ? 'border-[var(--action)] bg-[var(--action-tint)] text-[var(--action)]'
+                    : 'border-[var(--hairline)] bg-[var(--surface)] text-[var(--muted)]'
                 }`}
               >
                 <span className="text-xl">{cat.emoji}</span>
@@ -162,7 +162,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
           {category === 'custom' && (
             <input
-              className={`mt-2 ${inputClass} border-[#0066cc]/50`}
+              className={`mt-2 ${inputClass} border-[var(--action-border-half)]`}
               placeholder="Enter category name (e.g. Medicine, Tickets…)"
               value={customCategoryName}
               onChange={(e) => setCustomCategoryName(e.target.value)}
@@ -174,7 +174,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         {/* Paid by */}
         <div>
-          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Paid by</label>
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Paid by</label>
           <div className="flex flex-wrap gap-2">
             {trip.members.map((m) => (
               <button
@@ -183,8 +183,8 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
                 onClick={() => setPaidBy(m.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium border transition-all active:scale-95 ${
                   paidBy === m.id
-                    ? 'bg-[#0066cc] border-[#0066cc] text-white'
-                    : 'bg-white border-[#e0e0e0] text-[#1d1d1f]'
+                    ? 'bg-[var(--action)] border-[var(--action)] text-white'
+                    : 'bg-[var(--surface)] border-[var(--hairline)] text-[var(--ink)]'
                 }`}
               >
                 {m.name}
@@ -196,15 +196,15 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         {/* Split */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="text-xs text-[#7a7a7a] font-medium">Split between</label>
-            <div className="flex bg-[#f5f5f7] rounded-lg overflow-hidden border border-[#e0e0e0]">
+            <label className="text-xs text-[var(--muted)] font-medium">Split between</label>
+            <div className="flex bg-[var(--bg)] rounded-lg overflow-hidden border border-[var(--hairline)]">
               {(['equal', 'custom'] as SplitMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setSplitMode(mode)}
                   className={`px-3 py-1 text-xs font-medium transition-colors ${
-                    splitMode === mode ? 'bg-[#0066cc] text-white rounded-lg' : 'text-[#7a7a7a]'
+                    splitMode === mode ? 'bg-[var(--action)] text-white rounded-lg' : 'text-[var(--muted)]'
                   }`}
                 >
                   {mode === 'equal' ? 'Equal' : 'Custom'}
@@ -220,27 +220,27 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
                 <div
                   key={m.id}
                   className={`flex items-center gap-3 p-3 rounded-[18px] border transition-all ${
-                    isIn ? 'border-[#0066cc]/30 bg-[#0066cc]/5' : 'border-[#e0e0e0] bg-white opacity-50'
+                    isIn ? 'border-[var(--action-border)] bg-[var(--action-tint-5)]' : 'border-[var(--hairline)] bg-[var(--surface)] opacity-50'
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleMember(m.id)}
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                      isIn ? 'bg-[#0066cc] border-[#0066cc]' : 'border-[#cccccc]'
+                      isIn ? 'bg-[var(--action)] border-[var(--action)]' : 'border-[var(--disabled)]'
                     }`}
                   >
                     {isIn && <span className="text-white text-xs">✓</span>}
                   </button>
-                  <span className="flex-1 text-sm text-[#1d1d1f]">{m.name}</span>
+                  <span className="flex-1 text-sm text-[var(--ink)]">{m.name}</span>
                   {isIn && splitMode === 'equal' && (
-                    <span className="text-sm text-[#0066cc]">{formatINR(perPerson)}</span>
+                    <span className="text-sm text-[var(--action)]">{formatINR(perPerson)}</span>
                   )}
                   {isIn && splitMode === 'custom' && (
                     <div className="flex items-center gap-1">
-                      <span className="text-[#7a7a7a] text-xs">₹</span>
+                      <span className="text-[var(--muted)] text-xs">₹</span>
                       <input
-                        className="w-20 bg-white border border-[#e0e0e0] rounded-lg px-2 py-1 text-sm text-[#1d1d1f] text-right focus:outline-none focus:border-[#0066cc]"
+                        className="w-20 bg-[var(--surface)] border border-[var(--hairline)] rounded-lg px-2 py-1 text-sm text-[var(--ink)] text-right focus:outline-none focus:border-[var(--action)]"
                         inputMode="decimal"
                         placeholder="0"
                         value={customAmounts[m.id] ?? ''}
@@ -259,7 +259,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         {/* Date & Notes */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="block text-xs text-[#7a7a7a] mb-1 font-medium">Date</label>
+            <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Date</label>
             <input
               type="date"
               className={inputClass}
@@ -268,7 +268,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-[#7a7a7a] mb-1 font-medium">Notes</label>
+            <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Notes</label>
             <input
               className={inputClass}
               placeholder="Optional"
@@ -281,7 +281,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         {/* Receipt */}
         <div>
-          <label className="block text-xs text-[#7a7a7a] mb-2 font-medium">Receipt</label>
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Receipt</label>
           <input
             ref={fileInputRef}
             type="file"
@@ -296,12 +296,12 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
               <img
                 src={receiptUrl}
                 alt="Receipt"
-                className="w-24 h-24 rounded-[11px] object-cover border border-[#e0e0e0]"
+                className="w-24 h-24 rounded-[11px] object-cover border border-[var(--hairline)]"
               />
               <button
                 type="button"
                 onClick={() => setReceiptUrl(undefined)}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-[#1d1d1f] rounded-full flex items-center justify-center text-white text-xs leading-none active:scale-90 transition-transform"
+                className="absolute -top-2 -right-2 w-6 h-6 bg-[var(--ink)] rounded-full flex items-center justify-center text-[var(--bg)] text-xs leading-none active:scale-90 transition-transform"
               >
                 ✕
               </button>
@@ -311,11 +311,11 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={receiptUploading}
-              className="flex items-center gap-2 px-4 py-3 rounded-[11px] border border-dashed border-[#cccccc] bg-white text-[#7a7a7a] text-sm active:scale-95 transition-transform disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-3 rounded-[11px] border border-dashed border-[var(--disabled)] bg-[var(--surface)] text-[var(--muted)] text-sm active:scale-95 transition-transform disabled:opacity-50"
             >
               {receiptUploading ? (
                 <>
-                  <span className="inline-block w-4 h-4 border-2 border-[#0066cc] border-t-transparent rounded-full animate-spin" />
+                  <span className="inline-block w-4 h-4 border-2 border-[var(--action)] border-t-transparent rounded-full animate-spin" />
                   Uploading…
                 </>
               ) : (
@@ -323,13 +323,13 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
               )}
             </button>
           )}
-          {receiptError && <p className="text-red-500 text-xs mt-1">{receiptError}</p>}
+          {receiptError && <p className="text-[var(--red)] text-xs mt-1">{receiptError}</p>}
         </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-[var(--red)] text-sm">{error}</p>}
 
         {trip.members.length === 0 && (
-          <p className="text-[#ff9500] text-sm bg-[#ff9500]/10 rounded-[11px] p-3">
+          <p className="text-[var(--orange)] text-sm bg-[var(--orange-tint)] rounded-[11px] p-3">
             Add members in the People tab before logging expenses.
           </p>
         )}
@@ -337,7 +337,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         <button
           type="submit"
           disabled={trip.members.length === 0 || receiptUploading}
-          className="w-full py-4 rounded-full bg-[#0066cc] text-white font-medium text-base disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
+          className="w-full py-4 rounded-full bg-[var(--action)] text-white font-medium text-base disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
         >
           {isEdit ? 'Save Changes' : 'Add Expense'}
         </button>

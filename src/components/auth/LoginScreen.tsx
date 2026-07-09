@@ -21,21 +21,21 @@ export default function LoginScreen({ joinPending }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center bg-[#f5f5f7] p-8 text-center" style={{ minHeight: '100dvh' }}>
+    <div className="flex flex-col items-center justify-center bg-[var(--bg)] p-8 text-center" style={{ minHeight: '100dvh' }}>
       <span className="text-6xl mb-5">✈️</span>
-      <h1 className="text-2xl font-semibold text-[#1d1d1f] mb-2" style={{ letterSpacing: '-0.3px' }}>TripTracker</h1>
-      <p className="text-[#7a7a7a] text-[17px] mb-10 max-w-xs leading-relaxed">
+      <h1 className="text-2xl font-semibold text-[var(--ink)] mb-2" style={{ letterSpacing: '-0.3px' }}>TripTracker</h1>
+      <p className="text-[var(--muted)] text-[17px] mb-10 max-w-xs leading-relaxed">
         {joinPending
           ? "You've been invited to a trip. Sign in with Google to join it."
           : 'Sign in to sync your trips and expenses across all your devices.'}
       </p>
 
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {error && <p className="text-[var(--red)] text-sm mb-4">{error}</p>}
 
       <button
         onClick={handleSignIn}
         disabled={loading}
-        className="flex items-center gap-3 px-7 py-3.5 rounded-full bg-white border border-[#e0e0e0] text-[#1d1d1f] font-medium text-base disabled:opacity-50 active:scale-95 transition-transform"
+        className="flex items-center gap-3 px-7 py-3.5 rounded-full bg-[var(--surface)] border border-[var(--hairline)] text-[var(--ink)] font-medium text-base disabled:opacity-50 active:scale-95 transition-transform"
         style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
       >
         <GoogleIcon />

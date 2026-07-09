@@ -29,32 +29,32 @@ export default function InviteModal({ trip, onClose }: Props) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full bg-[#f5f5f7] rounded-t-[18px] border-t border-[#e0e0e0] p-6"
+        className="w-full bg-[var(--bg)] rounded-t-[18px] border-t border-[var(--hairline)] p-6"
         style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
       >
-        <div className="w-10 h-1 bg-[#cccccc] rounded-full mx-auto mb-5" />
-        <h2 className="text-lg font-semibold text-[#1d1d1f] mb-1" style={{ letterSpacing: '-0.3px' }}>
+        <div className="w-10 h-1 bg-[var(--disabled)] rounded-full mx-auto mb-5" />
+        <h2 className="text-lg font-semibold text-[var(--ink)] mb-1" style={{ letterSpacing: '-0.3px' }}>
           Invite to {trip.name}
         </h2>
-        <p className="text-[#7a7a7a] text-sm mb-4">
+        <p className="text-[var(--muted)] text-sm mb-4">
           Anyone with this link can sign in with Google and join the trip to add their expenses.
         </p>
 
-        <div className="bg-white border border-[#e0e0e0] rounded-[11px] px-4 py-3 mb-4 text-xs text-[#7a7a7a] break-all select-all">
+        <div className="bg-[var(--surface)] border border-[var(--hairline)] rounded-[11px] px-4 py-3 mb-4 text-xs text-[var(--muted)] break-all select-all">
           {link}
         </div>
 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 rounded-full border border-[#0066cc] text-[#0066cc] font-medium text-sm active:scale-95 transition-transform"
+            className="flex-1 py-3 rounded-full border border-[var(--action)] text-[var(--action)] font-medium text-sm active:scale-95 transition-transform"
           >
             Close
           </button>
           <button
             onClick={handleShare}
             className={`flex-1 py-3 rounded-full text-white font-medium text-sm active:scale-95 transition-transform ${
-              feedback === 'copied' ? 'bg-green-600' : 'bg-[#0066cc]'
+              feedback === 'copied' ? 'bg-[var(--green)]' : 'bg-[var(--action)]'
             }`}
           >
             {feedback === 'copied' ? '✓ Copied' : feedback === 'shared' ? '✓ Shared' : 'Share Link'}

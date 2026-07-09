@@ -3,6 +3,7 @@ import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
 import ShareModal from '../ShareModal'
+import { printTripSummary } from '../../utils/printPDF'
 
 interface Props {
   trip: Trip
@@ -37,7 +38,13 @@ export default function Dashboard({ trip, expenses }: Props) {
 
   return (
     <div className="p-4 pb-32 space-y-4">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={() => printTripSummary(trip, expenses)}
+          className="flex items-center gap-1.5 text-xs font-medium text-[#7a7a7a] bg-white border border-[#e0e0e0] px-3 py-2 rounded-full active:scale-95 transition-transform"
+        >
+          📄 PDF
+        </button>
         <button
           onClick={() => setShowShare(true)}
           className="flex items-center gap-1.5 text-xs font-medium text-[#0066cc] bg-[#0066cc]/8 border border-[#0066cc]/30 px-3 py-2 rounded-full active:scale-95 transition-transform"

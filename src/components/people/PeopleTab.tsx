@@ -3,6 +3,7 @@ import type { Member, Trip, Expense } from '../../types'
 import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements, computeRawDebts } from '../../utils/settlement'
+import { shareOrCopy } from '../../utils/share'
 import InviteModal from './InviteModal'
 
 interface Props {
@@ -23,6 +24,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [simplified, setSimplified] = useState(true)
   const [showInvite, setShowInvite] = useState(false)
+  const [toast, setToast] = useState('')
 
   const balances = computeBalances(expenses, trip.members)
   const settlements = simplified
@@ -64,6 +66,13 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
 
   const memberName = (id: string) =>
     trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  async function handleShareSettlement(from: string, to: string, amount: number) {
+    const text = `Hey ${memberName(from)}, just a reminder — you owe ${memberName(to)} ${formatINR(amount)} for ${trip.name}.\n\nPlease transfer when you get a chance! 🙏`
+    const result = await shareOrCopy(`Payment reminder · ${trip.name}`, text)
+    setToast(result === 'shared' ? 'Shared!' : 'Copied to clipboard!')
+    setTimeout(() => setToast(''), 2500)
+  }
 
   const AVATAR_COLORS = [
     '#0066cc', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444',
@@ -266,18 +275,30 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
                     {(() => {
                       const receiverUid = trip.members.find((m) => m.id === s.to)?.uid
                       const canMark = isOwner || (!!receiverUid && receiverUid === currentUid)
-                      if (!canMark) return null
                       return (
-                        <button
-                          onClick={() => onToggleSettlementPaid(s.from, s.to)}
-                          className={`flex-shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-full border active:scale-95 transition-transform ${
-                            paid
-                              ? 'text-[#7a7a7a] border-[#e0e0e0] bg-white'
-                              : 'text-green-600 border-green-300 bg-green-50'
-                          }`}
-                        >
-                          {paid ? 'Undo' : '✓ Paid'}
-                        </button>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {!paid && (
+                            <button
+                              onClick={() => handleShareSettlement(s.from, s.to, s.amount)}
+                              className="text-[#0066cc] text-base px-1.5 py-1 rounded-full active:opacity-50 transition-opacity"
+                              title="Send reminder"
+                            >
+                              💬
+                            </button>
+                          )}
+                          {canMark && (
+                            <button
+                              onClick={() => onToggleSettlementPaid(s.from, s.to)}
+                              className={`text-xs font-medium px-2.5 py-1.5 rounded-full border active:scale-95 transition-transform ${
+                                paid
+                                  ? 'text-[#7a7a7a] border-[#e0e0e0] bg-white'
+                                  : 'text-green-600 border-green-300 bg-green-50'
+                              }`}
+                            >
+                              {paid ? 'Undo' : '✓ Paid'}
+                            </button>
+                          )}
+                        </div>
                       )
                     })()}
                   </div>
@@ -295,6 +316,12 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
       )}
 
       {showInvite && <InviteModal trip={trip} onClose={() => setShowInvite(false)} />}
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#1d1d1f] text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg z-[200] whitespace-nowrap">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,11 @@ import { getCategoryConfig } from '../components/CategoryConfig'
 import { computeBalances, minimizeSettlements } from './settlement'
 
 function escapeCell(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`
+  // Neutralize CSV formula injection: a leading =, +, -, @, tab, or CR makes
+  // Excel/Sheets treat the cell as a formula. Prefix with ' so user-supplied
+  // names/notes/categories can never execute on open.
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+  return `"${safe.replace(/"/g, '""')}"`
 }
 
 export function downloadCSV(trip: Trip, expenses: Expense[]): void {

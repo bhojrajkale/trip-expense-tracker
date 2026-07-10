@@ -3,8 +3,21 @@ import { formatINR, formatDate } from './format'
 import { computeBalances, minimizeSettlements } from './settlement'
 import { getCategoryConfig } from '../components/CategoryConfig'
 
+// This module builds a raw HTML string written into a popup via document.write,
+// bypassing React's auto-escaping — every interpolated user string (names,
+// notes, custom categories, destination) MUST pass through esc() or it becomes
+// a stored-XSS vector.
+function esc(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function printTripSummary(trip: Trip, expenses: Expense[]) {
-  const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+  const memberName = (id: string) => esc(trip.members.find((m) => m.id === id)?.name ?? 'Unknown')
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const budgetPct = trip.budget > 0 ? Math.min(Math.round((totalSpent / trip.budget) * 100), 100) : 0
@@ -35,7 +48,7 @@ export function printTripSummary(trip: Trip, expenses: Expense[]) {
 
   const catRows = topCats.map((c) => `
     <tr>
-      <td>${c.emoji} ${c.label}</td>
+      <td>${c.emoji} ${esc(c.label)}</td>
       <td style="text-align:right;font-weight:600">${formatINR(c.amount)}</td>
       <td style="text-align:right;color:#7a7a7a">${totalSpent > 0 ? Math.round((c.amount / totalSpent) * 100) : 0}%</td>
     </tr>`).join('')
@@ -59,13 +72,13 @@ export function printTripSummary(trip: Trip, expenses: Expense[]) {
       </tr>`
     const rows = exps.map((e) => {
       const cfg = getCategoryConfig(e.category)
-      const label = e.category === 'custom' && e.customCategory ? e.customCategory : cfg.label
+      const label = e.category === 'custom' && e.customCategory ? esc(e.customCategory) : cfg.label
       const splitNames = e.splitBetween.map(memberName).join(', ')
       return `
       <tr>
         <td>${cfg.emoji} ${label}</td>
         <td style="color:#7a7a7a;font-size:11px">${memberName(e.paidBy)}</td>
-        <td style="color:#7a7a7a;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes || splitNames}</td>
+        <td style="color:#7a7a7a;font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes ? esc(e.notes) : splitNames}</td>
         <td style="text-align:right;font-weight:600">${formatINR(e.amount)}</td>
       </tr>`
     }).join('')
@@ -76,7 +89,7 @@ export function printTripSummary(trip: Trip, expenses: Expense[]) {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${trip.name} — Trip Summary</title>
+  <title>${esc(trip.name)} — Trip Summary</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1d1d1f; background: white; font-size: 13px; padding: 32px; }
@@ -97,8 +110,8 @@ export function printTripSummary(trip: Trip, expenses: Expense[]) {
   </style>
 </head>
 <body>
-  <h1>${trip.name}</h1>
-  <div class="meta">${trip.destination} · ${formatDate(trip.startDate)}${trip.endDate ? ' – ' + formatDate(trip.endDate) : ''} · ${trip.members.length} members · Printed ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+  <h1>${esc(trip.name)}</h1>
+  <div class="meta">${esc(trip.destination)} · ${formatDate(trip.startDate)}${trip.endDate ? ' – ' + formatDate(trip.endDate) : ''} · ${trip.members.length} members · Printed ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
 
   <div class="section">
     <h2>Budget</h2>

@@ -21,9 +21,13 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 **Data flow**: `activeTrip` and `activeExpenses` are derived in the store (`trips.find(...)`, `expenses.filter(...)`). Members are embedded inside `Trip` objects, not a separate Firestore collection. `Trip` has `ownerUid` and `memberUids` (all Google-authed members' UIDs) which drives Firestore security rules and the "my trips" query.
 
-**Edit trip** (`src/components/TripModal.tsx`): The same modal handles both create and edit. When `editTrip?: Trip` prop is provided, fields pre-populate, the existing `id`/`members` are preserved, and title/button text change accordingly. `App.tsx` tracks `editingTrip` state; `Header.tsx` shows ✏️ beside 🗑 for owned trips in the dropdown.
+**Trip modal — create / edit / duplicate** (`src/components/TripModal.tsx`): One modal, three modes. `editTrip?: Trip` pre-fills and preserves `id`/`members`; `duplicateFrom?: Trip` pre-fills name ("… (copy)"), destination, and budget but creates a new trip — start date resets to today, and `App.tsx`'s duplicate handler clones members with fresh ids while keeping account links (`uid`/`email`/`photoURL`), copying neither expenses nor `paidSettlements`. `App.tsx` tracks `editingTrip`/`duplicatingTrip` state. Header dropdown row buttons: ✏️ edit and 🗑 delete are owner-only; ⧉ duplicate and 📦 archive appear on shared trips too.
+
+**Archive trips** (`Trip.archived?: boolean`): Trip-level flag (applies for all members, reversible). `toggleArchiveTrip` in the store flips it; archiving the active trip falls back to the next non-archived one, and default trip selection on load skips archived trips. The header dropdown shows non-archived trips plus a collapsible "Archived (n)" section with Restore; `App.tsx` shows an "All trips archived" empty state when `activeTrip` is null but trips exist, and the header "No trip" label stays tappable so the picker (and Restore) remains reachable.
 
 **Paid settlements** (`Trip.paidSettlements?: PaidSettlement[]`): Each entry stores `{ from, to, paidAt }` (member IDs + ISO date). Matched against computed settlements by `from+to` pair. The "✓ Paid" / "Undo" button in `PeopleTab` is gated to the receiving member (`s.to` member's `uid === currentUid`) or the trip owner. `toggleSettlementPaid` in the store finds the existing entry, adds or removes it, then calls `saveTrip`. The 💬 settlement share reminder button on each unpaid row calls `shareOrCopy()` with a pre-built message and disappears once marked paid.
+
+**Activity feed** (`src/components/activity/ActivityFeed.tsx`, Feed tab): Append-only event log in `trips/{id}/activity` — expense added/updated/deleted, member added/removed/joined, settlement paid/unpaid, trip edited. Entries are written fire-and-forget by the `log()` helper in `useStore` (never blocks a mutation); `joinTrip` in `firestore.ts` logs `member_joined` directly. Actor names are denormalized at write time so entries survive member removal; the component does its own realtime subscription (`subscribeActivity`, newest 50, ordered by `at` desc) rather than going through the store. Rules: members read and create entries stamped with their own `actorUid`; no updates; owner deletes (done in `removeTrip` cleanup). When adding a new mutation to the store, add a matching `log()` call and, if it's a new event shape, extend `ActivityType` + the `ActivityRow` switch.
 
 **PDF export** (`src/utils/printPDF.ts`): `printTripSummary(trip, expenses)` builds a self-contained HTML string with inline styles, opens it via `window.open()`, then calls `window.print()` after 250 ms. On iOS Safari the print dialog includes "Save to Files" → PDF. Zero new npm dependencies. Button sits on the Dashboard next to 📤 Share.
 
@@ -44,19 +48,16 @@ There are no tests. The build script runs `tsc -b` before Vite, so TypeScript er
 
 **CSV export** (`src/utils/export.ts`): `downloadCSV()` generates a CSV with expenses + settlement summary and triggers a browser download via `URL.createObjectURL`. Triggered from the Expenses tab.
 
-**Firebase / Cloud sync** (`src/utils/firebase.ts`, `src/utils/auth.ts`, `src/utils/firestore.ts`): Google Auth via `signInWithPopup`. Data lives under `users/{uid}/trips` and `users/{uid}/expenses` — flat collections, one document per record. The `clean<T>()` helper in `firestore.ts` strips `undefined` fields before every `setDoc` call (Firestore rejects undefined). Auth state in `App.tsx` is `User | null | undefined`: `undefined` = Firebase still initializing, `null` = signed out → `<LoginScreen />`, `User` = main app.
+**Firebase / Cloud sync** (`src/utils/firebase.ts`, `src/utils/auth.ts`, `src/utils/firestore.ts`): Google Auth via `signInWithPopup`. Data layout: `trips/{tripId}` (shared, queried by `memberUids array-contains uid`) with subcollections `expenses/{expenseId}` and `activity/{activityId}`. The legacy `users/{uid}/…` layout is auto-migrated on login by `migrateLegacyData` (copy-then-delete, idempotent). `memberUids` is always derived via `memberUidsFor()` — never edit it directly; `cleanTrip()` recomputes it on every save. The `clean<T>()` helper strips `undefined` fields before every `setDoc` (Firestore rejects undefined) — this is why optional Trip/Expense fields can be added freely without migrations. Auth state in `App.tsx` is `User | null | undefined`: `undefined` = Firebase still initializing, `null` = signed out → `<LoginScreen />`, `User` = main app.
 
 **Env vars**: Firebase config uses `import.meta.env.VITE_FIREBASE_*`. Copy `.env.local.example` to `.env.local` for local dev. CI reads the same vars from repository secrets (Settings → Secrets → Actions).
 
 **Firebase Console setup required** (one-time):
 1. Authentication → Sign-in method → enable Google
 2. Authentication → Authorized domains → add `bhojrajkale.github.io`
-3. Firestore → Create database (production mode), then rules:
-   ```
-   match /users/{uid}/{document=**} {
-     allow read, write: if request.auth != null && request.auth.uid == uid;
-   }
-   ```
+3. Firestore → Create database (production mode), then publish rules
+
+**Firestore rules**: `firestore.rules` in the repo root is the source of truth, but there is no Firebase CLI — any rules change must be manually pasted into Firebase Console → Firestore → Rules → Publish (https://console.firebase.google.com/project/trip-expense-tracker-f4a5b/firestore/rules). Key invariants encoded there: trip create requires being owner + in `memberUids`; members may edit trip fields but only ever grow `members`/`memberUids` (join = adding your own uid); expense edit/delete restricted to creator or owner; activity is append-only with `actorUid == auth.uid`.
 
 **Deployment**: GitHub Actions (`.github/workflows/deploy.yml`) runs `npm ci → npm run build → upload-pages-artifact → deploy-pages` on push to `main`. `vite.config.ts` sets `base: '/trip-expense-tracker/'` for the GitHub Pages subpath.
 

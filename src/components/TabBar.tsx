@@ -10,6 +10,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'add', label: 'Add', icon: '+' },
   { id: 'expenses', label: 'Expenses', icon: '₹' },
   { id: 'people', label: 'People', icon: '👥' },
+  { id: 'activity', label: 'Feed', icon: '🕓' },
 ]
 
 export default function TabBar({ active, onChange }: Props) {

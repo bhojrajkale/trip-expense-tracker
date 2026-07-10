@@ -58,6 +58,19 @@ service cloud.firestore {
               || (request.auth.uid in trip().memberUids
                   && resource.data.createdByUid == request.auth.uid));
       }
+
+      // Append-only activity feed: members read and add entries stamped with
+      // their own uid; nothing is edited. Owner may delete (trip cleanup).
+      match /activity/{activityId} {
+        function actTrip() {
+          return get(/databases/$(database)/documents/trips/$(tripId)).data;
+        }
+        allow read: if request.auth != null && request.auth.uid in actTrip().memberUids;
+        allow create: if request.auth != null
+          && request.auth.uid in actTrip().memberUids
+          && request.resource.data.actorUid == request.auth.uid;
+        allow delete: if request.auth != null && request.auth.uid == actTrip().ownerUid;
+      }
     }
   }
 }

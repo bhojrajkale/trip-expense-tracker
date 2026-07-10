@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
-import type { Trip, Expense, Member } from '../types'
+import type { Trip, Expense, Member, Activity, ActivityType } from '../types'
 import { loadActiveTripId, saveActiveTripId } from '../utils/storage'
 import {
   subscribeTrips,
@@ -9,6 +9,7 @@ import {
   removeTrip,
   saveExpense,
   removeExpense,
+  logActivity,
   memberUidsFor,
 } from '../utils/firestore'
 
@@ -165,6 +166,25 @@ export function useStore(uid: string | null) {
     []
   )
 
+  // Fire-and-forget activity log entry; actor name resolved from the trip's
+  // members at write time so feed entries survive later member removal
+  const log = useCallback(
+    (tripId: string, type: ActivityType, extra?: Partial<Activity>) => {
+      if (!uid) return
+      const trip = stateRef.current.trips.find((t) => t.id === tripId)
+      const actorName = trip?.members.find((m) => m.uid === uid)?.name ?? 'Someone'
+      logActivity(tripId, {
+        id: crypto.randomUUID(),
+        type,
+        actorUid: uid,
+        actorName,
+        at: new Date().toISOString(),
+        ...extra,
+      }).catch(console.error)
+    },
+    [uid]
+  )
+
   const addTrip = useCallback(
     (draft: Omit<Trip, 'ownerUid' | 'memberUids'>) => {
       if (!uid) return
@@ -182,7 +202,8 @@ export function useStore(uid: string | null) {
   const updateTrip = useCallback((trip: Trip) => {
     dispatch({ type: 'UPDATE_TRIP', trip })
     saveTrip(trip).catch(console.error)
-  }, [])
+    log(trip.id, 'trip_updated')
+  }, [log])
 
   const toggleSettlementPaid = useCallback((tripId: string, from: string, to: string) => {
     const trip = stateRef.current.trips.find((t) => t.id === tripId)
@@ -197,7 +218,12 @@ export function useStore(uid: string | null) {
     }
     dispatch({ type: 'UPDATE_TRIP', trip: updated })
     saveTrip(updated).catch(console.error)
-  }, [])
+    const name = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+    log(tripId, idx >= 0 ? 'settlement_unpaid' : 'settlement_paid', {
+      fromName: name(from),
+      toName: name(to),
+    })
+  }, [log])
 
   const toggleArchiveTrip = useCallback((id: string) => {
     const trip = stateRef.current.trips.find((t) => t.id === id)
@@ -223,20 +249,37 @@ export function useStore(uid: string | null) {
       const expense: Expense = { ...draft, createdByUid: uid }
       dispatch({ type: 'ADD_EXPENSE', expense })
       saveExpense(expense.tripId, expense).catch(console.error)
+      log(expense.tripId, 'expense_added', {
+        amount: expense.amount,
+        category: expense.category,
+        customCategory: expense.customCategory,
+      })
     },
-    [uid]
+    [uid, log]
   )
 
   const updateExpense = useCallback((expense: Expense) => {
     dispatch({ type: 'UPDATE_EXPENSE', expense })
     saveExpense(expense.tripId, expense).catch(console.error)
-  }, [])
+    log(expense.tripId, 'expense_updated', {
+      amount: expense.amount,
+      category: expense.category,
+      customCategory: expense.customCategory,
+    })
+  }, [log])
 
   const deleteExpense = useCallback((id: string) => {
     const expense = stateRef.current.expenses.find((e) => e.id === id)
     dispatch({ type: 'DELETE_EXPENSE', id })
-    if (expense) removeExpense(expense.tripId, id).catch(console.error)
-  }, [])
+    if (expense) {
+      removeExpense(expense.tripId, id).catch(console.error)
+      log(expense.tripId, 'expense_deleted', {
+        amount: expense.amount,
+        category: expense.category,
+        customCategory: expense.customCategory,
+      })
+    }
+  }, [log])
 
   // Accepts a batch: adding contacts one-by-one would base each Firestore
   // write on a stale trip copy, so only the last member would survive
@@ -247,8 +290,9 @@ export function useStore(uid: string | null) {
     if (trip) {
       const updated = { ...trip, members: [...trip.members, ...members] }
       saveTrip({ ...updated, memberUids: memberUidsFor(updated) }).catch(console.error)
+      members.forEach((m) => log(tripId, 'member_added', { memberName: m.name }))
     }
-  }, [])
+  }, [log])
 
   const addMember = useCallback(
     (tripId: string, member: Member) => addMembers(tripId, [member]),
@@ -256,13 +300,16 @@ export function useStore(uid: string | null) {
   )
 
   const removeMember = useCallback((tripId: string, memberId: string) => {
+    const removedName = stateRef.current.trips
+      .find((t) => t.id === tripId)?.members.find((m) => m.id === memberId)?.name
     dispatch({ type: 'REMOVE_MEMBER', tripId, memberId })
     const trip = stateRef.current.trips.find((t) => t.id === tripId)
     if (trip) {
       const updated = { ...trip, members: trip.members.filter((m) => m.id !== memberId) }
       saveTrip({ ...updated, memberUids: memberUidsFor(updated) }).catch(console.error)
+      if (removedName) log(tripId, 'member_removed', { memberName: removedName })
     }
-  }, [])
+  }, [log])
 
   return {
     loading,

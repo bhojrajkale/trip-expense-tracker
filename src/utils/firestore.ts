@@ -10,11 +10,13 @@ import {
   onSnapshot,
   query,
   where,
+  orderBy,
+  limit,
   writeBatch,
   arrayUnion,
   type Unsubscribe,
 } from 'firebase/firestore'
-import type { Trip, Expense, Member } from '../types'
+import type { Trip, Expense, Member, Activity } from '../types'
 
 // Firestore rejects undefined values — strip them before writing
 function clean<T extends object>(obj: T): T {
@@ -26,6 +28,7 @@ function clean<T extends object>(obj: T): T {
 const tripsCol = collection(db, 'trips')
 const tripDoc = (tripId: string) => doc(db, 'trips', tripId)
 const expensesCol = (tripId: string) => collection(db, 'trips', tripId, 'expenses')
+const activityCol = (tripId: string) => collection(db, 'trips', tripId, 'activity')
 
 // memberUids is always derived — never edited directly. It drives the
 // "my trips" query and the security rules' membership checks.
@@ -62,16 +65,34 @@ export function subscribeExpenses(tripId: string, cb: (expenses: Expense[]) => v
   )
 }
 
+// Newest first, capped — the feed is a recent-changes view, not a full audit log
+export function subscribeActivity(tripId: string, cb: (activity: Activity[]) => void): Unsubscribe {
+  const q = query(activityCol(tripId), orderBy('at', 'desc'), limit(50))
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as Activity)),
+    (err) => console.error('activity listener error', err)
+  )
+}
+
 // ─── Writes ─────────────────────────────────────────────────────────────────
 
 export async function saveTrip(trip: Trip): Promise<void> {
   await setDoc(tripDoc(trip.id), cleanTrip(trip))
 }
 
+export async function logActivity(tripId: string, activity: Activity): Promise<void> {
+  await setDoc(doc(activityCol(tripId), activity.id), clean(activity))
+}
+
 export async function removeTrip(tripId: string): Promise<void> {
-  const expSnap = await getDocs(expensesCol(tripId))
+  const [expSnap, actSnap] = await Promise.all([
+    getDocs(expensesCol(tripId)),
+    getDocs(activityCol(tripId)),
+  ])
   const batch = writeBatch(db)
   expSnap.docs.forEach((d) => batch.delete(d.ref))
+  actSnap.docs.forEach((d) => batch.delete(d.ref))
   batch.delete(tripDoc(tripId))
   await batch.commit()
 }
@@ -140,6 +161,18 @@ export async function joinTrip(
     memberUids: arrayUnion(user.uid),
     members,
   })
+
+  const joinedName = claimMemberId
+    ? (trip.members.find((m) => m.id === claimMemberId)?.name ?? user.displayName ?? 'New member')
+    : user.displayName || user.email || 'New member'
+  logActivity(tripId, {
+    id: crypto.randomUUID(),
+    type: 'member_joined',
+    actorUid: user.uid,
+    actorName: joinedName,
+    at: new Date().toISOString(),
+    memberName: joinedName,
+  }).catch(console.error)
 }
 
 // ─── One-time migration from legacy /users/{uid}/… layout ───────────────────

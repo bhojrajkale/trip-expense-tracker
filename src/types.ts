@@ -61,7 +61,34 @@ export interface Expense {
   receiptPhotoUrl?: string
 }
 
-export type Tab = 'dashboard' | 'add' | 'expenses' | 'people'
+export type Tab = 'dashboard' | 'add' | 'expenses' | 'people' | 'activity'
+
+export type ActivityType =
+  | 'expense_added'
+  | 'expense_updated'
+  | 'expense_deleted'
+  | 'member_added'
+  | 'member_removed'
+  | 'member_joined'
+  | 'settlement_paid'
+  | 'settlement_unpaid'
+  | 'trip_updated'
+
+// Append-only event log per trip (trips/{id}/activity). actorName is
+// denormalized at write time so entries survive member removal.
+export interface Activity {
+  id: string
+  type: ActivityType
+  actorUid: string
+  actorName: string
+  at: string // ISO timestamp
+  amount?: number
+  category?: Category
+  customCategory?: string
+  memberName?: string // member_added / member_removed / member_joined
+  fromName?: string   // settlement pair
+  toName?: string
+}
 
 export interface Settlement {
   from: string

@@ -9,6 +9,7 @@ import Dashboard from './components/dashboard/Dashboard'
 import AddExpenseForm from './components/add/AddExpenseForm'
 import ExpenseList from './components/expenses/ExpenseList'
 import PeopleTab from './components/people/PeopleTab'
+import ActivityFeed from './components/activity/ActivityFeed'
 import LoginScreen from './components/auth/LoginScreen'
 import { getInitialTheme, applyTheme, type Theme } from './utils/theme'
 import UnauthorizedScreen from './components/auth/UnauthorizedScreen'
@@ -184,6 +185,9 @@ export default function App() {
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
                 onToggleSettlementPaid={(from, to) => store.toggleSettlementPaid(store.activeTrip!.id, from, to)}
               />
+            )}
+            {tab === 'activity' && (
+              <ActivityFeed trip={store.activeTrip} currentUid={user.uid} />
             )}
           </>
         )}

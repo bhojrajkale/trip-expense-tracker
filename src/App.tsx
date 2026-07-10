@@ -233,7 +233,10 @@ export default function App() {
         <TripModal
           editTrip={editingTrip}
           onSave={(updated) => {
-            store.updateTrip({ ...updated, ownerUid: editingTrip.ownerUid, memberUids: editingTrip.memberUids })
+            // Spread the existing trip first: the form only owns a few fields,
+            // and saveTrip is a full-document overwrite — anything omitted
+            // here (archived, paidSettlements, endDate, …) would be deleted.
+            store.updateTrip({ ...editingTrip, ...updated })
             setEditingTrip(undefined)
           }}
           onClose={() => setEditingTrip(undefined)}

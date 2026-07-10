@@ -43,6 +43,7 @@ export default function App() {
 
   const [showTripModal, setShowTripModal] = useState(false)
   const [editingTrip, setEditingTrip] = useState<Trip | undefined>()
+  const [duplicatingTrip, setDuplicatingTrip] = useState<Trip | undefined>()
   const [editingExpense, setEditingExpense] = useState<Expense | undefined>()
   const [pendingJoin, setPendingJoin] = useState<string | null>(readPendingJoin)
 
@@ -99,6 +100,7 @@ export default function App() {
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
         onEditTrip={(trip) => setEditingTrip(trip)}
+        onDuplicateTrip={(trip) => setDuplicatingTrip(trip)}
         onDeleteTrip={store.deleteTrip}
         currentUid={user.uid}
         userPhotoURL={user.photoURL}
@@ -190,6 +192,21 @@ export default function App() {
             setShowTripModal(false)
           }}
           onClose={() => setShowTripModal(false)}
+        />
+      )}
+
+      {duplicatingTrip && (
+        <TripModal
+          duplicateFrom={duplicatingTrip}
+          onSave={(trip) => {
+            // Clone members with fresh ids; keep account links (uid/email/photo)
+            // so linked members carry over. Expenses and paid settlements don't.
+            const members = duplicatingTrip.members.map((m) => ({ ...m, id: crypto.randomUUID() }))
+            store.addTrip({ ...trip, members })
+            store.setActiveTrip(trip.id)
+            setDuplicatingTrip(undefined)
+          }}
+          onClose={() => setDuplicatingTrip(undefined)}
         />
       )}
 

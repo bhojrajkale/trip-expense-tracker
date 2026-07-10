@@ -4,15 +4,20 @@ import { todayISO } from '../utils/format'
 
 interface Props {
   editTrip?: Trip
+  // Pre-fills fields from a past trip but creates a new one (start date resets to today)
+  duplicateFrom?: Trip
   // ownerUid/memberUids are stamped by the store when the trip is created
   onSave: (trip: Omit<Trip, 'ownerUid' | 'memberUids'>) => void
   onClose: () => void
 }
 
-export default function TripModal({ editTrip, onSave, onClose }: Props) {
-  const [name, setName] = useState(editTrip?.name ?? '')
-  const [destination, setDestination] = useState(editTrip?.destination ?? '')
-  const [budget, setBudget] = useState(editTrip ? String(editTrip.budget) : '')
+export default function TripModal({ editTrip, duplicateFrom, onSave, onClose }: Props) {
+  const source = editTrip ?? duplicateFrom
+  const [name, setName] = useState(
+    editTrip?.name ?? (duplicateFrom ? `${duplicateFrom.name} (copy)`.slice(0, 50) : '')
+  )
+  const [destination, setDestination] = useState(source?.destination ?? '')
+  const [budget, setBudget] = useState(source ? String(source.budget) : '')
   const [startDate, setStartDate] = useState(editTrip?.startDate ?? todayISO())
   const [error, setError] = useState('')
 
@@ -52,7 +57,7 @@ export default function TripModal({ editTrip, onSave, onClose }: Props) {
       >
         <div className="w-10 h-1 bg-[var(--disabled)] rounded-full mx-auto mb-5" />
         <h2 className="text-lg font-semibold text-[var(--ink)] mb-4" style={{ letterSpacing: '-0.3px' }}>
-          {isEditing ? 'Edit Trip' : 'New Trip'}
+          {isEditing ? 'Edit Trip' : duplicateFrom ? 'Duplicate Trip' : 'New Trip'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">

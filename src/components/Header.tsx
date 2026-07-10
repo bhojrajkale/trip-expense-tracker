@@ -7,6 +7,7 @@ interface Props {
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
   onEditTrip: (trip: Trip) => void
+  onDuplicateTrip: (trip: Trip) => void
   onDeleteTrip: (id: string) => void
   currentUid: string
   userPhotoURL?: string | null
@@ -15,7 +16,7 @@ interface Props {
   onToggleTheme: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onEditTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut, isDark, onToggleTheme }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onEditTrip, onDuplicateTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut, isDark, onToggleTheme }: Props) {
   const [showPicker, setShowPicker] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -27,6 +28,12 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
 
   function handleEdit(trip: Trip) {
     onEditTrip(trip)
+    setShowPicker(false)
+    setConfirmDelete(null)
+  }
+
+  function handleDuplicate(trip: Trip) {
+    onDuplicateTrip(trip)
     setShowPicker(false)
     setConfirmDelete(null)
   }
@@ -102,7 +109,16 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
               </button>
 
               {trip.ownerUid !== currentUid ? (
-                <span className="text-[10px] text-[var(--muted)] px-3 py-3">shared</span>
+                <div className="flex items-center pr-1">
+                  <span className="text-[10px] text-[var(--muted)] py-3 pl-3">shared</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDuplicate(trip) }}
+                    className="text-[var(--action)] px-2.5 py-3 text-sm transition-opacity active:opacity-50"
+                    title="Duplicate trip"
+                  >
+                    ⧉
+                  </button>
+                </div>
               ) : confirmDelete === trip.id ? (
                 <div className="flex items-center gap-1 pr-2">
                   <button
@@ -126,6 +142,13 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                     title="Edit trip"
                   >
                     ✏️
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDuplicate(trip) }}
+                    className="text-[var(--action)] px-2.5 py-3 text-sm transition-opacity active:opacity-50"
+                    title="Duplicate trip"
+                  >
+                    ⧉
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}

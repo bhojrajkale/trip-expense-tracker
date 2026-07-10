@@ -163,7 +163,11 @@ export function useStore(uid: string | null) {
   const addTrip = useCallback(
     (draft: Omit<Trip, 'ownerUid' | 'memberUids'>) => {
       if (!uid) return
-      const trip: Trip = { ...draft, ownerUid: uid, memberUids: [uid] }
+      const trip: Trip = {
+        ...draft,
+        ownerUid: uid,
+        memberUids: memberUidsFor({ ownerUid: uid, members: draft.members }),
+      }
       dispatch({ type: 'ADD_TRIP', trip })
       saveTrip(trip).catch(console.error)
     },

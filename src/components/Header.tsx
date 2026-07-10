@@ -113,7 +113,7 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                   <span className="text-[10px] text-[var(--muted)] py-3 pl-3">shared</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDuplicate(trip) }}
-                    className="text-[var(--action)] px-2.5 py-3 text-sm transition-opacity active:opacity-50"
+                    className="text-[var(--action)] px-2.5 py-3 text-xl leading-none transition-opacity active:opacity-50"
                     title="Duplicate trip"
                   >
                     ⧉
@@ -145,7 +145,7 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDuplicate(trip) }}
-                    className="text-[var(--action)] px-2.5 py-3 text-sm transition-opacity active:opacity-50"
+                    className="text-[var(--action)] px-2.5 py-3 text-xl leading-none transition-opacity active:opacity-50"
                     title="Duplicate trip"
                   >
                     ⧉

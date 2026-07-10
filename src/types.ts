@@ -36,6 +36,7 @@ export interface Trip {
   // "my trips" query and Firestore security rules.
   memberUids: string[]
   paidSettlements?: PaidSettlement[]
+  archived?: boolean
 }
 
 export interface SplitAmount {

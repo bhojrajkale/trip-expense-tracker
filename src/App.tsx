@@ -101,6 +101,7 @@ export default function App() {
         onNewTrip={() => setShowTripModal(true)}
         onEditTrip={(trip) => setEditingTrip(trip)}
         onDuplicateTrip={(trip) => setDuplicatingTrip(trip)}
+        onArchiveTrip={store.toggleArchiveTrip}
         onDeleteTrip={store.deleteTrip}
         currentUid={user.uid}
         userPhotoURL={user.photoURL}
@@ -124,7 +125,21 @@ export default function App() {
               + Create Trip
             </button>
           </div>
-        ) : !store.activeTrip ? null : (
+        ) : !store.activeTrip ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
+            <span className="text-6xl mb-4">📦</span>
+            <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">All trips archived</h1>
+            <p className="text-[var(--muted)] text-sm mb-6">
+              Restore a trip from the menu above, or create a new one.
+            </p>
+            <button
+              onClick={() => setShowTripModal(true)}
+              className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
+            >
+              + Create Trip
+            </button>
+          </div>
+        ) : (
           <>
             {tab === 'dashboard' && (
               <Dashboard trip={store.activeTrip} expenses={store.activeExpenses} />
@@ -174,7 +189,7 @@ export default function App() {
         )}
       </main>
 
-      {!noTrip && <TabBar active={tab} onChange={handleTabChange} />}
+      {store.activeTrip && <TabBar active={tab} onChange={handleTabChange} />}
 
       {showTripModal && (
         <TripModal

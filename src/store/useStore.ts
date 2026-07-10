@@ -119,11 +119,16 @@ export function useStore(uid: string | null) {
           const current = stateRef.current.activeTripId
           if (!current) {
             const savedId = loadActiveTripId()
-            const activeId = trips.find((t) => t.id === savedId)?.id ?? trips[0]?.id ?? null
+            const activeId =
+              trips.find((t) => t.id === savedId)?.id ??
+              trips.find((t) => !t.archived)?.id ??
+              trips[0]?.id ??
+              null
             dispatch({ type: 'SET_ACTIVE_TRIP', id: activeId })
           } else if (!ids.has(current) && prevTripIdsRef.current.has(current)) {
             // Trip disappeared (deleted, or we were removed) — fall back
-            dispatch({ type: 'SET_ACTIVE_TRIP', id: trips[0]?.id ?? null })
+            const fallback = trips.find((t) => !t.archived) ?? trips[0]
+            dispatch({ type: 'SET_ACTIVE_TRIP', id: fallback?.id ?? null })
           }
           prevTripIdsRef.current = ids
           setLoading(false)
@@ -194,6 +199,19 @@ export function useStore(uid: string | null) {
     saveTrip(updated).catch(console.error)
   }, [])
 
+  const toggleArchiveTrip = useCallback((id: string) => {
+    const trip = stateRef.current.trips.find((t) => t.id === id)
+    if (!trip) return
+    const updated: Trip = { ...trip, archived: !trip.archived }
+    dispatch({ type: 'UPDATE_TRIP', trip: updated })
+    saveTrip(updated).catch(console.error)
+    // Archiving the active trip switches to the first non-archived one
+    if (!trip.archived && stateRef.current.activeTripId === id) {
+      const next = stateRef.current.trips.find((t) => t.id !== id && !t.archived)
+      dispatch({ type: 'SET_ACTIVE_TRIP', id: next?.id ?? null })
+    }
+  }, [])
+
   const deleteTrip = useCallback((id: string) => {
     dispatch({ type: 'DELETE_TRIP', id })
     removeTrip(id).catch(console.error)
@@ -256,6 +274,7 @@ export function useStore(uid: string | null) {
     setActiveTrip,
     addTrip,
     updateTrip,
+    toggleArchiveTrip,
     deleteTrip,
     addExpense,
     updateExpense,

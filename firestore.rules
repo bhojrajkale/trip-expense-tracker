@@ -1,59 +1,75 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    // App-wide allowlist. Mirrors VITE_ALLOWED_UIDS (client-side gate is UX
+    // only — this is the actual enforcement). One empty doc per allowed uid
+    // at /allowlist/{uid}; exists() works here without any allow-read rule
+    // on that collection, so the list is never exposed to clients.
+    function isAllowedUser() {
+      return signedIn() && exists(/databases/$(database)/documents/allowlist/$(request.auth.uid));
+    }
+
     // Legacy per-user data — kept so client-side migration can read/delete it.
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isAllowedUser() && request.auth.uid == uid;
     }
 
     match /trips/{tripId} {
-      function signedIn() { return request.auth != null; }
       function isMember() { return signedIn() && request.auth.uid in resource.data.memberUids; }
 
-      // Capability-URL: any signed-in user who has the trip id (i.e. the
-      // invite link) may GET that one trip — powers the Join preview so
-      // invitees see what they're joining. Queries (list) only ever return
-      // trips you are a member of, so trips never leak in bulk.
-      allow get: if signedIn();
-      allow list: if isMember();
+      // Capability-URL: any allowed, signed-in user who has the trip id may
+      // GET that one trip — powers the Join preview so invitees see what
+      // they're joining. Queries (list) only ever return trips you belong to.
+      allow get: if isAllowedUser();
+      allow list: if isAllowedUser() && isMember();
 
-      allow create: if signedIn()
+      allow create: if isAllowedUser()
         && request.resource.data.ownerUid == request.auth.uid
-        && request.auth.uid in request.resource.data.memberUids;
+        && request.resource.data.memberUids == [request.auth.uid];
 
-      // Owner: full control (except ownerUid is immutable).
-      // Members and joiners: may edit trip fields and ADD members, but never
-      // remove one — every existing memberUid must be preserved and the
-      // members array may only grow. Join is the same rule: a non-member's
-      // only valid update adds their own uid.
-      allow update: if signedIn()
+      // memberUids may only ever change by a self-join appending exactly the
+      // caller's own uid — never an arbitrary third-party uid, and never as
+      // a side effect of an unrelated field edit. This is what actually
+      // grants Firestore read/write access to a trip's expenses, so it's
+      // tightened independently of the (looser) `members` display list.
+      allow update: if isAllowedUser()
         && request.resource.data.ownerUid == resource.data.ownerUid
         && (
+          // Owner: full control, including membership revocation.
           request.auth.uid == resource.data.ownerUid
-          || (request.resource.data.memberUids.hasAll(resource.data.memberUids)
-              && request.auth.uid in request.resource.data.memberUids
+          // Existing member editing trip fields / adding an offline member:
+          // memberUids must stay byte-for-byte identical, members may only grow.
+          || (isMember()
+              && request.resource.data.memberUids == resource.data.memberUids
+              && request.resource.data.members.size() >= resource.data.members.size())
+          // Self-join: caller adds ONLY themself, nothing else about
+          // memberUids may change, and members may only grow.
+          || (!isMember()
+              && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
               && request.resource.data.members.size() >= resource.data.members.size())
         );
 
-      allow delete: if signedIn() && request.auth.uid == resource.data.ownerUid;
+      allow delete: if isAllowedUser() && request.auth.uid == resource.data.ownerUid;
 
       match /expenses/{expenseId} {
         function trip() {
           return get(/databases/$(database)/documents/trips/$(tripId)).data;
         }
-        allow read: if request.auth != null && request.auth.uid in trip().memberUids;
+        allow read: if isAllowedUser() && request.auth.uid in trip().memberUids;
         // New expenses must be stamped with the creator's own uid
-        allow create: if request.auth != null
+        allow create: if isAllowedUser()
           && request.auth.uid in trip().memberUids
           && request.resource.data.createdByUid == request.auth.uid;
         // Only the expense's creator (or the trip owner) may edit/delete it,
         // and the creator stamp cannot be reassigned
-        allow update: if request.auth != null
+        allow update: if isAllowedUser()
           && request.resource.data.createdByUid == resource.data.createdByUid
           && (request.auth.uid == trip().ownerUid
               || (request.auth.uid in trip().memberUids
                   && resource.data.createdByUid == request.auth.uid));
-        allow delete: if request.auth != null
+        allow delete: if isAllowedUser()
           && (request.auth.uid == trip().ownerUid
               || (request.auth.uid in trip().memberUids
                   && resource.data.createdByUid == request.auth.uid));
@@ -65,11 +81,11 @@ service cloud.firestore {
         function actTrip() {
           return get(/databases/$(database)/documents/trips/$(tripId)).data;
         }
-        allow read: if request.auth != null && request.auth.uid in actTrip().memberUids;
-        allow create: if request.auth != null
+        allow read: if isAllowedUser() && request.auth.uid in actTrip().memberUids;
+        allow create: if isAllowedUser()
           && request.auth.uid in actTrip().memberUids
           && request.resource.data.actorUid == request.auth.uid;
-        allow delete: if request.auth != null && request.auth.uid == actTrip().ownerUid;
+        allow delete: if isAllowedUser() && request.auth.uid == actTrip().ownerUid;
       }
     }
   }

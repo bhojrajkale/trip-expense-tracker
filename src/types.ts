@@ -90,6 +90,18 @@ export interface Activity {
   toName?: string
 }
 
+// Safe subset of Trip exposed pre-join (no email/photoURL/phone/budget) —
+// powers the invite preview so opening a link never leaks member PII.
+// See buildPreview() in firestore.ts.
+export interface TripPreview {
+  id: string
+  name: string
+  destination: string
+  startDate: string
+  memberUids: string[]
+  members: { id: string; name: string; uid?: string }[]
+}
+
 export interface Settlement {
   from: string
   to: string

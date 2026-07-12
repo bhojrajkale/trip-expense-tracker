@@ -16,7 +16,7 @@ import {
   arrayUnion,
   type Unsubscribe,
 } from 'firebase/firestore'
-import type { Trip, Expense, Member, Activity } from '../types'
+import type { Trip, Expense, Member, Activity, TripPreview } from '../types'
 
 // Firestore rejects undefined values — strip them before writing
 function clean<T extends object>(obj: T): T {
@@ -27,6 +27,7 @@ function clean<T extends object>(obj: T): T {
 
 const tripsCol = collection(db, 'trips')
 const tripDoc = (tripId: string) => doc(db, 'trips', tripId)
+const previewDoc = (tripId: string) => doc(db, 'tripsPreview', tripId)
 const expensesCol = (tripId: string) => collection(db, 'trips', tripId, 'expenses')
 const activityCol = (tripId: string) => collection(db, 'trips', tripId, 'activity')
 
@@ -44,6 +45,19 @@ function cleanTrip(trip: Trip): Trip {
     members: trip.members.map((m) => clean(m)),
     memberUids: memberUidsFor(trip),
   })
+}
+
+// Safe projection for the pre-join preview — deliberately omits email,
+// photoURL, phone, and budget. See TripPreview in types.ts.
+function buildPreview(trip: Trip): TripPreview {
+  return {
+    id: trip.id,
+    name: trip.name,
+    destination: trip.destination,
+    startDate: trip.startDate,
+    memberUids: trip.memberUids,
+    members: trip.members.map((m) => clean({ id: m.id, name: m.name, uid: m.uid })),
+  }
 }
 
 // ─── Realtime subscriptions ─────────────────────────────────────────────────
@@ -79,6 +93,11 @@ export function subscribeActivity(tripId: string, cb: (activity: Activity[]) => 
 
 export async function saveTrip(trip: Trip): Promise<void> {
   await setDoc(tripDoc(trip.id), cleanTrip(trip))
+  // Sequential, not batched: the preview's write rule checks the trip's
+  // just-committed memberUids, so it must run strictly after the real
+  // write lands. Also doubles as self-healing backfill for trips that
+  // predate this collection.
+  await setDoc(previewDoc(trip.id), buildPreview(trip))
 }
 
 export async function logActivity(tripId: string, activity: Activity): Promise<void> {
@@ -93,6 +112,7 @@ export async function removeTrip(tripId: string): Promise<void> {
   const batch = writeBatch(db)
   expSnap.docs.forEach((d) => batch.delete(d.ref))
   actSnap.docs.forEach((d) => batch.delete(d.ref))
+  batch.delete(previewDoc(tripId))
   batch.delete(tripDoc(tripId))
   await batch.commit()
 }
@@ -107,9 +127,22 @@ export async function removeExpense(tripId: string, expenseId: string): Promise<
 
 // ─── Join flow ──────────────────────────────────────────────────────────────
 
-// Pre-join preview: any signed-in holder of the trip id may read the trip doc
-// (see firestore.rules `allow get`). Returns null for missing/denied.
-export async function getTripForJoin(tripId: string): Promise<Trip | null> {
+// Safe pre-join read: only name/destination/dates/member names+ids, no PII.
+// Any allowlisted signed-in user with the trip id may read this (see
+// firestore.rules `tripsPreview`). Returns null for missing/denied.
+export async function getTripPreview(tripId: string): Promise<TripPreview | null> {
+  try {
+    const snap = await getDoc(previewDoc(tripId))
+    return snap.exists() ? (snap.data() as TripPreview) : null
+  } catch {
+    return null
+  }
+}
+
+// Exposes full member PII (email/photoURL) — only call this right before a
+// claim-join write, never on page load. See getTripPreview() for the safe
+// pre-join read used everywhere else.
+export async function getTripForClaim(tripId: string): Promise<Trip | null> {
   try {
     const snap = await getDoc(tripDoc(tripId))
     return snap.exists() ? (snap.data() as Trip) : null
@@ -125,15 +158,46 @@ export interface JoiningUser {
   photoURL: string | null
 }
 
-// One update that satisfies the non-member join rule: every existing
-// memberUid preserved (arrayUnion), own uid added, members list not shrunk.
-// claimMemberId links the account to an existing offline member; otherwise
-// a new member entry is appended.
-export async function joinTrip(
+async function logJoin(tripId: string, uid: string, joinedName: string): Promise<void> {
+  logActivity(tripId, {
+    id: crypto.randomUUID(),
+    type: 'member_joined',
+    actorUid: uid,
+    actorName: joinedName,
+    at: new Date().toISOString(),
+    memberName: joinedName,
+  }).catch(console.error)
+}
+
+// Join as a brand-new member. Pure blind append — needs no read of the trip
+// at all, so this path never touches other members' PII.
+export async function joinAsNewMember(tripId: string, user: JoiningUser): Promise<void> {
+  const newMember = clean({
+    id: crypto.randomUUID(),
+    name: user.displayName || user.email || 'New member',
+    uid: user.uid,
+    email: user.email ?? undefined,
+    photoURL: user.photoURL ?? undefined,
+  })
+
+  await updateDoc(tripDoc(tripId), {
+    memberUids: arrayUnion(user.uid),
+    members: arrayUnion(newMember),
+  })
+
+  await logJoin(tripId, user.uid, newMember.name)
+}
+
+// Claim an existing "offline" member entry as your own account. Replacing
+// one array element in place isn't expressible via arrayUnion/arrayRemove
+// alone, so this needs the full, current trip (fetched via getTripForClaim
+// immediately before this call) to safely preserve every other member's
+// data while rewriting the array.
+export async function claimMember(
   tripId: string,
   user: JoiningUser,
-  trip: Trip,
-  claimMemberId?: string
+  fullTrip: Trip,
+  claimMemberId: string
 ): Promise<void> {
   const accountFields = clean({
     uid: user.uid,
@@ -141,38 +205,18 @@ export async function joinTrip(
     photoURL: user.photoURL ?? undefined,
   })
 
-  let members: Member[]
-  if (claimMemberId) {
-    members = trip.members.map((m) =>
-      m.id === claimMemberId ? clean({ ...m, ...accountFields }) : clean(m)
-    )
-  } else {
-    members = [
-      ...trip.members.map((m) => clean(m)),
-      clean({
-        id: crypto.randomUUID(),
-        name: user.displayName || user.email || 'New member',
-        ...accountFields,
-      }),
-    ]
-  }
+  const members: Member[] = fullTrip.members.map((m) =>
+    m.id === claimMemberId ? clean({ ...m, ...accountFields }) : clean(m)
+  )
 
   await updateDoc(tripDoc(tripId), {
     memberUids: arrayUnion(user.uid),
     members,
   })
 
-  const joinedName = claimMemberId
-    ? (trip.members.find((m) => m.id === claimMemberId)?.name ?? user.displayName ?? 'New member')
-    : user.displayName || user.email || 'New member'
-  logActivity(tripId, {
-    id: crypto.randomUUID(),
-    type: 'member_joined',
-    actorUid: user.uid,
-    actorName: joinedName,
-    at: new Date().toISOString(),
-    memberName: joinedName,
-  }).catch(console.error)
+  const joinedName = fullTrip.members.find((m) => m.id === claimMemberId)?.name
+    ?? user.displayName ?? 'New member'
+  await logJoin(tripId, user.uid, joinedName)
 }
 
 // ─── One-time migration from legacy /users/{uid}/… layout ───────────────────

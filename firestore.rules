@@ -16,6 +16,20 @@ service cloud.firestore {
       allow read, write: if isAllowedUser() && request.auth.uid == uid;
     }
 
+    // Safe pre-join preview: name/destination/dates/member names+ids only —
+    // deliberately no email/photoURL/phone/budget, see buildPreview() in
+    // firestore.ts. Any allowlisted signed-in user may read it (this is
+    // what invite links resolve to before the viewer decides to join,
+    // without exposing member PII). Only a current trip member may
+    // write/refresh it, checked against the authoritative trip doc — this
+    // write always follows the real trip write, never precedes it, so the
+    // membership it checks is already committed.
+    match /tripsPreview/{tripId} {
+      allow get: if isAllowedUser();
+      allow write: if isAllowedUser()
+        && request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberUids;
+    }
+
     match /trips/{tripId} {
       function isMember() { return signedIn() && request.auth.uid in resource.data.memberUids; }
 
@@ -41,8 +55,12 @@ service cloud.firestore {
       }
 
       // Capability-URL: any allowed, signed-in user who has the trip id may
-      // GET that one trip — powers the Join preview so invitees see what
-      // they're joining. Queries (list) only ever return trips you belong to.
+      // GET that one trip — this is now only exercised by the deliberate
+      // "claim an existing member" join action (see getTripForClaim() in
+      // firestore.ts), which needs full member fidelity to safely rewrite
+      // the array. The common join-preview path reads tripsPreview instead
+      // (below) and never touches this document. Queries (list) only ever
+      // return trips you belong to.
       allow get: if isAllowedUser();
       allow list: if isAllowedUser() && isMember();
 

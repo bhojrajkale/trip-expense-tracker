@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { Trip } from '../../types'
+import type { TripPreview } from '../../types'
 import type { User } from '../../utils/auth'
-import { getTripForJoin, joinTrip } from '../../utils/firestore'
+import { getTripPreview, getTripForClaim, joinAsNewMember, claimMember } from '../../utils/firestore'
 import { initials, formatDate } from '../../utils/format'
 
 interface Props {
@@ -15,12 +15,12 @@ type Phase = 'loading' | 'invalid' | 'preview' | 'joining' | 'error'
 
 export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>('loading')
-  const [trip, setTrip] = useState<Trip | null>(null)
+  const [trip, setTrip] = useState<TripPreview | null>(null)
   const [claimId, setClaimId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    getTripForJoin(tripId).then((t) => {
+    getTripPreview(tripId).then((t) => {
       if (cancelled) return
       if (!t) {
         setPhase('invalid')
@@ -41,18 +41,23 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   async function handleJoin() {
     if (!trip) return
     setPhase('joining')
+    const joiningUser = {
+      uid: user.uid,
+      displayName: user.displayName,
+      email: user.email,
+      photoURL: user.photoURL,
+    }
     try {
-      await joinTrip(
-        tripId,
-        {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL,
-        },
-        trip,
-        claimId ?? undefined
-      )
+      if (claimId) {
+        // Claiming requires the full trip (other members' data must be
+        // preserved while rewriting the array) — fetched now, only for
+        // this deliberate action, never eagerly on page load.
+        const fullTrip = await getTripForClaim(tripId)
+        if (!fullTrip) throw new Error('trip not found')
+        await claimMember(tripId, joiningUser, fullTrip, claimId)
+      } else {
+        await joinAsNewMember(tripId, joiningUser)
+      }
       onDone(tripId)
     } catch (e) {
       console.error('join failed', e)

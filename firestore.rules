@@ -102,15 +102,39 @@ service cloud.firestore {
         function trip() {
           return get(/databases/$(database)/documents/trips/$(tripId)).data;
         }
+
+        // Server-side mirror of AddExpenseForm's client validation — a member
+        // writing via the SDK directly (bypassing the UI) can't corrupt
+        // balance/settlement math with negative/absurd amounts or a doc
+        // pointing at some other trip. Rules can't sum splitAmounts (no
+        // reduce), so the splits-equal-total invariant stays client-only.
+        function isValidExpense(exp) {
+          return exp.id == expenseId
+            && exp.tripId == tripId
+            && exp.amount is number
+            && exp.amount > 0
+            && exp.amount <= 9999999
+            && exp.category in ['food', 'transport', 'accommodation', 'activities', 'shopping', 'custom']
+            && exp.paidBy is string && exp.paidBy.size() > 0
+            && exp.splitBetween is list && exp.splitBetween.size() > 0
+            && exp.date is string && exp.date.size() == 10
+            && exp.notes is string && exp.notes.size() <= 200
+            && (!('customCategory' in exp) || (exp.customCategory is string && exp.customCategory.size() <= 50))
+            && (!('splitAmounts' in exp) || exp.splitAmounts is list)
+            && (!('receiptPhotoUrl' in exp) || exp.receiptPhotoUrl is string);
+        }
+
         allow read: if isAllowedUser() && request.auth.uid in trip().memberUids;
         // New expenses must be stamped with the creator's own uid
         allow create: if isAllowedUser()
           && request.auth.uid in trip().memberUids
-          && request.resource.data.createdByUid == request.auth.uid;
+          && request.resource.data.createdByUid == request.auth.uid
+          && isValidExpense(request.resource.data);
         // Only the expense's creator (or the trip owner) may edit/delete it,
         // and the creator stamp cannot be reassigned
         allow update: if isAllowedUser()
           && request.resource.data.createdByUid == resource.data.createdByUid
+          && isValidExpense(request.resource.data)
           && (request.auth.uid == trip().ownerUid
               || (request.auth.uid in trip().memberUids
                   && resource.data.createdByUid == request.auth.uid));

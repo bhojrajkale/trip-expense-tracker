@@ -80,6 +80,9 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     if (category === 'custom' && !customCategoryName.trim()) return setError('Enter a category name')
     if (!paidBy) return setError('Select who paid')
     if (splitBetween.length === 0) return setError('Select at least one person to split with')
+    // Firestore rules require a YYYY-MM-DD date — desktop browsers allow
+    // clearing the date input, which would make the save silently fail
+    if (!date) return setError('Select a date')
 
     let splitAmounts: SplitAmount[] | undefined
     if (splitMode === 'custom') {

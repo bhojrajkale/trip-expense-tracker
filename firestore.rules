@@ -19,6 +19,27 @@ service cloud.firestore {
     match /trips/{tripId} {
       function isMember() { return signedIn() && request.auth.uid in resource.data.memberUids; }
 
+      // `members` may grow (append) but an existing entry's fields
+      // (name/uid/email/photoURL) may never be altered by this path —
+      // otherwise any member could rewrite another member's identity.
+      function isMembersGrowthOnly(oldMembers, newMembers) {
+        return newMembers.size() >= oldMembers.size() && newMembers.hasAll(oldMembers);
+      }
+
+      // Join-by-claim: exactly one existing "offline" (no uid) entry is
+      // replaced by the same entry now carrying the joiner's own uid —
+      // every other entry, and the entry's id, must stay untouched.
+      function isValidClaim(oldMembers, newMembers, uid) {
+        let removed = oldMembers.removeAll(newMembers);
+        let added = newMembers.removeAll(oldMembers);
+        return newMembers.size() == oldMembers.size()
+          && removed.size() == 1
+          && added.size() == 1
+          && added[0].id == removed[0].id
+          && added[0].uid == uid
+          && !('uid' in removed[0]);
+      }
+
       // Capability-URL: any allowed, signed-in user who has the trip id may
       // GET that one trip — powers the Join preview so invitees see what
       // they're joining. Queries (list) only ever return trips you belong to.
@@ -37,18 +58,24 @@ service cloud.firestore {
       allow update: if isAllowedUser()
         && request.resource.data.ownerUid == resource.data.ownerUid
         && (
-          // Owner: full control, including membership revocation.
+          // Owner: full control, including membership revocation and
+          // correcting member details.
           request.auth.uid == resource.data.ownerUid
           // Existing member editing trip fields / adding an offline member:
-          // memberUids must stay byte-for-byte identical, members may only grow.
+          // memberUids must stay byte-for-byte identical; members may only
+          // grow, and no existing member's entry may be altered in place.
           || (isMember()
               && request.resource.data.memberUids == resource.data.memberUids
-              && request.resource.data.members.size() >= resource.data.members.size())
-          // Self-join: caller adds ONLY themself, nothing else about
-          // memberUids may change, and members may only grow.
+              && isMembersGrowthOnly(resource.data.members, request.resource.data.members))
+          // Self-join: caller adds ONLY themself to memberUids, and either
+          // appends a brand-new member entry or claims exactly one existing
+          // unclaimed entry as their own — no other member's data changes.
           || (!isMember()
               && request.resource.data.memberUids == resource.data.memberUids.concat([request.auth.uid])
-              && request.resource.data.members.size() >= resource.data.members.size())
+              && (
+                isMembersGrowthOnly(resource.data.members, request.resource.data.members)
+                || isValidClaim(resource.data.members, request.resource.data.members, request.auth.uid)
+              ))
         );
 
       allow delete: if isAllowedUser() && request.auth.uid == resource.data.ownerUid;

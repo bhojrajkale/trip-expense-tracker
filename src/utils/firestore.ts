@@ -98,13 +98,19 @@ export function subscribeActivity(tripId: string, cb: (activity: Activity[]) => 
 
 // ─── Writes ─────────────────────────────────────────────────────────────────
 
+// Exported so useStore can proactively backfill previews for trips that
+// predate the tripsPreview collection (created before this was introduced,
+// and never since edited — the only other writer is saveTrip below).
+export async function savePreview(trip: Trip): Promise<void> {
+  await setDoc(previewDoc(trip.id), buildPreview(trip))
+}
+
 export async function saveTrip(trip: Trip): Promise<void> {
   await setDoc(tripDoc(trip.id), cleanTrip(trip))
   // Sequential, not batched: the preview's write rule checks the trip's
   // just-committed memberUids, so it must run strictly after the real
-  // write lands. Also doubles as self-healing backfill for trips that
-  // predate this collection.
-  await setDoc(previewDoc(trip.id), buildPreview(trip))
+  // write lands.
+  await savePreview(trip)
 }
 
 export async function logActivity(tripId: string, activity: Activity): Promise<void> {

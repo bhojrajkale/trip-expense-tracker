@@ -8,6 +8,7 @@ import {
   deleteJoinRequest,
   migrateLegacyData,
   saveTrip,
+  savePreview,
   removeTrip,
   saveExpense,
   removeExpense,
@@ -103,6 +104,13 @@ export function useStore(uid: string | null) {
   // (keep active and wait).
   const prevTripIdsRef = useRef<Set<string>>(new Set())
 
+  // Trips whose tripsPreview doc we've refreshed this session — backfills
+  // trips created before that collection existed (invite links for them
+  // otherwise 404 forever, since saveTrip is the only other writer and
+  // nothing else touches an untouched old trip). Once-per-session, not
+  // once-per-doc-check, to avoid an extra read per trip on every snapshot.
+  const syncedPreviewsRef = useRef<Set<string>>(new Set())
+
   // Migrate legacy /users/{uid}/… data, then subscribe to shared trips
   useEffect(() => {
     if (!uid) {
@@ -110,6 +118,7 @@ export function useStore(uid: string | null) {
       dispatch({ type: 'SET_EXPENSES', expenses: [] })
       dispatch({ type: 'SET_ACTIVE_TRIP', id: null })
       prevTripIdsRef.current = new Set()
+      syncedPreviewsRef.current = new Set()
       setLoading(false)
       return
     }
@@ -127,6 +136,12 @@ export function useStore(uid: string | null) {
           uid,
           (trips) => {
             dispatch({ type: 'SET_TRIPS', trips })
+
+            for (const trip of trips) {
+              if (syncedPreviewsRef.current.has(trip.id)) continue
+              syncedPreviewsRef.current.add(trip.id)
+              savePreview(trip).catch(console.error)
+            }
 
             const ids = new Set(trips.map((t) => t.id))
             const current = stateRef.current.activeTripId

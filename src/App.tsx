@@ -82,10 +82,12 @@ export default function App() {
     return <LoginScreen joinPending={!!pendingJoin} />
   }
 
-  // Firestore denied this account (client allowlist off but no server-side
-  // allowlist entry) — show the same honest "not on the access list" screen
-  // instead of hanging on the loading spinner forever.
-  if ((ALLOWED_UIDS.length > 0 && !ALLOWED_UIDS.includes(user.uid)) || store.loadError === 'denied') {
+  // Only block a genuine stranger: a signed-in user who isn't allowlisted (or
+  // whose trips read was denied) AND has no trips AND isn't mid-join. Invited
+  // members have trips (membership-gated, not allowlist-gated) and active
+  // joiners have a pendingJoin, so both fall through to the app / join screen.
+  const notAllowlisted = ALLOWED_UIDS.length > 0 && !ALLOWED_UIDS.includes(user.uid)
+  if ((notAllowlisted || store.loadError === 'denied') && store.trips.length === 0 && !pendingJoin) {
     return <UnauthorizedScreen email={user.email} />
   }
 
@@ -199,10 +201,13 @@ export default function App() {
                 expenses={store.activeExpenses}
                 currentUid={user.uid}
                 isOwner={isOwner}
+                joinRequests={store.joinRequests}
                 onAddMember={(member) => store.addMember(store.activeTrip!.id, member)}
                 onAddMembers={(members) => store.addMembers(store.activeTrip!.id, members)}
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
                 onToggleSettlementPaid={(from, to) => store.toggleSettlementPaid(store.activeTrip!.id, from, to)}
+                onApproveRequest={(req) => store.approveJoinRequest(store.activeTrip!.id, req)}
+                onRejectRequest={(reqUid) => store.rejectJoinRequest(store.activeTrip!.id, reqUid)}
               />
             )}
             {tab === 'activity' && (

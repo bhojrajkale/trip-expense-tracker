@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Member, Trip, Expense } from '../../types'
+import type { Member, Trip, Expense, JoinRequest } from '../../types'
 import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements, computeRawDebts } from '../../utils/settlement'
@@ -11,13 +11,16 @@ interface Props {
   expenses: Expense[]
   currentUid: string
   isOwner: boolean
+  joinRequests: JoinRequest[]
   onAddMember: (member: Member) => void
   onAddMembers: (members: Member[]) => void
   onRemoveMember: (memberId: string) => void
   onToggleSettlementPaid: (from: string, to: string) => void
+  onApproveRequest: (req: JoinRequest) => void
+  onRejectRequest: (reqUid: string) => void
 }
 
-export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMember, onAddMembers, onRemoveMember, onToggleSettlementPaid }: Props) {
+export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinRequests, onAddMember, onAddMembers, onRemoveMember, onToggleSettlementPaid, onApproveRequest, onRejectRequest }: Props) {
   const [manualName, setManualName] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [contactsError, setContactsError] = useState('')
@@ -129,6 +132,53 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, onAddMe
           >
             Add
           </button>
+        </div>
+      )}
+
+      {isOwner && joinRequests.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">
+            Requests to join ({joinRequests.length})
+          </h3>
+          <div className="space-y-2">
+            {joinRequests.map((req) => {
+              const claimName = req.claimMemberId
+                ? trip.members.find((m) => m.id === req.claimMemberId)?.name
+                : null
+              return (
+                <div
+                  key={req.uid}
+                  className="flex items-center gap-3 p-3 rounded-[18px] border border-[var(--action-border)] bg-[var(--action-tint)]"
+                >
+                  {req.photoURL ? (
+                    <img src={req.photoURL} alt={req.name} className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-[var(--action)] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                      {initials(req.name)}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-[var(--ink)] truncate">{req.name}</div>
+                    <div className="text-xs text-[var(--muted)] truncate">
+                      {claimName ? `wants to join as ${claimName}` : 'wants to join'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onRejectRequest(req.uid)}
+                    className="text-xs font-medium text-[var(--muted)] px-3 py-1.5 rounded-full border border-[var(--hairline)] active:scale-95 transition-transform"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => onApproveRequest(req)}
+                    className="text-xs font-medium text-white px-3 py-1.5 rounded-full bg-[var(--action)] active:scale-95 transition-transform"
+                  >
+                    Approve
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

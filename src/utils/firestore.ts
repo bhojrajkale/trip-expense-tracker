@@ -6,17 +6,15 @@ import {
   deleteDoc,
   getDoc,
   getDocs,
-  updateDoc,
   onSnapshot,
   query,
   where,
   orderBy,
   limit,
   writeBatch,
-  arrayUnion,
   type Unsubscribe,
 } from 'firebase/firestore'
-import type { Trip, Expense, Member, Activity, TripPreview } from '../types'
+import type { Trip, Expense, Activity, TripPreview, JoinRequest } from '../types'
 
 // Firestore rejects undefined values — strip them before writing
 function clean<T extends object>(obj: T): T {
@@ -30,6 +28,8 @@ const tripDoc = (tripId: string) => doc(db, 'trips', tripId)
 const previewDoc = (tripId: string) => doc(db, 'tripsPreview', tripId)
 const expensesCol = (tripId: string) => collection(db, 'trips', tripId, 'expenses')
 const activityCol = (tripId: string) => collection(db, 'trips', tripId, 'activity')
+const joinRequestsCol = (tripId: string) => collection(db, 'trips', tripId, 'joinRequests')
+const joinRequestDoc = (tripId: string, uid: string) => doc(db, 'trips', tripId, 'joinRequests', uid)
 
 // memberUids is always derived — never edited directly. It drives the
 // "my trips" query and the security rules' membership checks.
@@ -112,13 +112,15 @@ export async function logActivity(tripId: string, activity: Activity): Promise<v
 }
 
 export async function removeTrip(tripId: string): Promise<void> {
-  const [expSnap, actSnap] = await Promise.all([
+  const [expSnap, actSnap, reqSnap] = await Promise.all([
     getDocs(expensesCol(tripId)),
     getDocs(activityCol(tripId)),
+    getDocs(joinRequestsCol(tripId)),
   ])
   const batch = writeBatch(db)
   expSnap.docs.forEach((d) => batch.delete(d.ref))
   actSnap.docs.forEach((d) => batch.delete(d.ref))
+  reqSnap.docs.forEach((d) => batch.delete(d.ref))
   batch.delete(previewDoc(tripId))
   batch.delete(tripDoc(tripId))
   await batch.commit()
@@ -132,11 +134,11 @@ export async function removeExpense(tripId: string, expenseId: string): Promise<
   await deleteDoc(doc(expensesCol(tripId), expenseId))
 }
 
-// ─── Join flow ──────────────────────────────────────────────────────────────
+// ─── Join flow (request → owner approval) ───────────────────────────────────
 
 // Safe pre-join read: only name/destination/dates/member names+ids, no PII.
-// Any allowlisted signed-in user with the trip id may read this (see
-// firestore.rules `tripsPreview`). Returns null for missing/denied.
+// Any signed-in user with the trip id may read this (see firestore.rules
+// `tripsPreview`). Returns null for missing/denied.
 export async function getTripPreview(tripId: string): Promise<TripPreview | null> {
   try {
     const snap = await getDoc(previewDoc(tripId))
@@ -146,84 +148,76 @@ export async function getTripPreview(tripId: string): Promise<TripPreview | null
   }
 }
 
-// Exposes full member PII (email/photoURL) — only call this right before a
-// claim-join write, never on page load. See getTripPreview() for the safe
-// pre-join read used everywhere else.
-export async function getTripForClaim(tripId: string): Promise<Trip | null> {
-  try {
-    const snap = await getDoc(tripDoc(tripId))
-    return snap.exists() ? (snap.data() as Trip) : null
-  } catch {
-    return null
-  }
-}
-
-export interface JoiningUser {
+export interface RequestingUser {
   uid: string
   displayName: string | null
   email: string | null
   photoURL: string | null
 }
 
-async function logJoin(tripId: string, uid: string, joinedName: string): Promise<void> {
-  logActivity(tripId, {
-    id: crypto.randomUUID(),
-    type: 'member_joined',
-    actorUid: uid,
-    actorName: joinedName,
-    at: new Date().toISOString(),
-    memberName: joinedName,
-  }).catch(console.error)
-}
-
-// Join as a brand-new member. Pure blind append — needs no read of the trip
-// at all, so this path never touches other members' PII.
-export async function joinAsNewMember(tripId: string, user: JoiningUser): Promise<void> {
-  const newMember = clean({
-    id: crypto.randomUUID(),
-    name: user.displayName || user.email || 'New member',
-    uid: user.uid,
-    email: user.email ?? undefined,
-    photoURL: user.photoURL ?? undefined,
-  })
-
-  await updateDoc(tripDoc(tripId), {
-    memberUids: arrayUnion(user.uid),
-    members: arrayUnion(newMember),
-  })
-
-  await logJoin(tripId, user.uid, newMember.name)
-}
-
-// Claim an existing "offline" member entry as your own account. Replacing
-// one array element in place isn't expressible via arrayUnion/arrayRemove
-// alone, so this needs the full, current trip (fetched via getTripForClaim
-// immediately before this call) to safely preserve every other member's
-// data while rewriting the array.
-export async function claimMember(
+// Non-members write only this small self-owned request doc — they never touch
+// the trip. The owner approves it (see approveJoinRequest in useStore), which
+// is the only path that adds a member. Keyed by uid, so re-requesting upserts.
+export async function requestToJoin(
   tripId: string,
-  user: JoiningUser,
-  fullTrip: Trip,
-  claimMemberId: string
+  user: RequestingUser,
+  claimMemberId?: string
 ): Promise<void> {
-  const accountFields = clean({
-    uid: user.uid,
-    email: user.email ?? undefined,
-    photoURL: user.photoURL ?? undefined,
-  })
-
-  const members: Member[] = fullTrip.members.map((m) =>
-    m.id === claimMemberId ? clean({ ...m, ...accountFields }) : clean(m)
+  await setDoc(
+    joinRequestDoc(tripId, user.uid),
+    clean({
+      uid: user.uid,
+      name: user.displayName || user.email || 'Someone',
+      email: user.email ?? null,
+      photoURL: user.photoURL ?? null,
+      claimMemberId,
+      requestedAt: new Date().toISOString(),
+    })
   )
+}
 
-  await updateDoc(tripDoc(tripId), {
-    memberUids: arrayUnion(user.uid),
-    members,
-  })
+export async function getJoinRequest(tripId: string, uid: string): Promise<JoinRequest | null> {
+  try {
+    const snap = await getDoc(joinRequestDoc(tripId, uid))
+    return snap.exists() ? (snap.data() as JoinRequest) : null
+  } catch {
+    return null
+  }
+}
 
-  const joinedName = fullTrip.members.find((m) => m.id === claimMemberId)?.name
-    ?? user.displayName ?? 'New member'
-  await logJoin(tripId, user.uid, joinedName)
+// Requester's pending screen watches their own request doc: it disappears when
+// the owner approves (after adding them to the trip) or declines.
+export function subscribeJoinRequest(
+  tripId: string,
+  uid: string,
+  cb: (req: JoinRequest | null) => void
+): Unsubscribe {
+  return onSnapshot(
+    joinRequestDoc(tripId, uid),
+    (snap) => cb(snap.exists() ? (snap.data() as JoinRequest) : null),
+    (err) => console.error('join request listener error', err)
+  )
+}
+
+// Owner's realtime list of pending requests for one trip.
+export function subscribeJoinRequests(
+  tripId: string,
+  cb: (requests: JoinRequest[]) => void,
+  onError?: (err: { code?: string }) => void
+): Unsubscribe {
+  const q = query(joinRequestsCol(tripId), orderBy('requestedAt', 'asc'))
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => d.data() as JoinRequest)),
+    (err) => {
+      console.error('join requests listener error', err)
+      onError?.(err)
+    }
+  )
+}
+
+export async function deleteJoinRequest(tripId: string, reqUid: string): Promise<void> {
+  await deleteDoc(joinRequestDoc(tripId, reqUid))
 }
 
 // ─── One-time migration from legacy /users/{uid}/… layout ───────────────────

@@ -102,6 +102,17 @@ export interface TripPreview {
   members: { id: string; name: string; uid?: string }[]
 }
 
+// A pending request to join a trip, awaiting owner approval. Lives at
+// trips/{tripId}/joinRequests/{uid} — keyed by requester uid (one per user).
+export interface JoinRequest {
+  uid: string
+  name: string
+  email: string | null
+  photoURL: string | null
+  claimMemberId?: string // if they picked an existing offline member to claim
+  requestedAt: string    // ISO timestamp
+}
+
 export interface Settlement {
   from: string
   to: string

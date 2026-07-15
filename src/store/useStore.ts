@@ -1,9 +1,11 @@
 import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
-import type { Trip, Expense, Member, Activity, ActivityType } from '../types'
+import type { Trip, Expense, Member, Activity, ActivityType, JoinRequest } from '../types'
 import { loadActiveTripId, saveActiveTripId } from '../utils/storage'
 import {
   subscribeTrips,
   subscribeExpenses,
+  subscribeJoinRequests,
+  deleteJoinRequest,
   migrateLegacyData,
   saveTrip,
   removeTrip,
@@ -89,6 +91,7 @@ export type LoadError = 'denied' | 'network' | null
 export function useStore(uid: string | null) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<LoadError>(null)
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
   const [state, dispatch] = useReducer(reducer, { trips: [], expenses: [], activeTripId: null })
 
   // Always-current ref so callbacks don't go stale
@@ -174,6 +177,17 @@ export function useStore(uid: string | null) {
   useEffect(() => {
     saveActiveTripId(state.activeTripId)
   }, [state.activeTripId])
+
+  // Owner-only: realtime pending join requests for the active trip. The rules
+  // only allow the owner to list them, so non-owners keep an empty array.
+  const activeOwnerUid = state.trips.find((t) => t.id === state.activeTripId)?.ownerUid
+  useEffect(() => {
+    if (!uid || !state.activeTripId || activeOwnerUid !== uid) {
+      setJoinRequests([])
+      return
+    }
+    return subscribeJoinRequests(state.activeTripId, setJoinRequests, () => setJoinRequests([]))
+  }, [uid, state.activeTripId, activeOwnerUid])
 
   const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null
   const activeExpenses = state.expenses.filter((e) => e.tripId === state.activeTripId)
@@ -328,9 +342,52 @@ export function useStore(uid: string | null) {
     }
   }, [log])
 
+  // Owner approves a pending join request: add the requester as a member
+  // (idempotent — keyed by uid, so re-approving never duplicates), then delete
+  // the request. Done owner-side because only the owner can add to memberUids.
+  const approveJoinRequest = useCallback((tripId: string, req: JoinRequest) => {
+    const trip = stateRef.current.trips.find((t) => t.id === tripId)
+    if (!trip) return
+
+    let members: Member[]
+    let joinedName: string
+    if (req.claimMemberId && trip.members.some((m) => m.id === req.claimMemberId)) {
+      // Claim: link the account onto the chosen offline member entry
+      members = trip.members.map((m) =>
+        m.id === req.claimMemberId
+          ? { ...m, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined }
+          : m
+      )
+      joinedName = trip.members.find((m) => m.id === req.claimMemberId)?.name ?? req.name
+    } else if (trip.members.some((m) => m.uid === req.uid)) {
+      // Already a member (double-approve) — just clear the request
+      members = trip.members
+      joinedName = req.name
+    } else {
+      members = [
+        ...trip.members,
+        { id: crypto.randomUUID(), name: req.name, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined },
+      ]
+      joinedName = req.name
+    }
+
+    const updated: Trip = { ...trip, members, memberUids: memberUidsFor({ ...trip, members }) }
+    dispatch({ type: 'UPDATE_TRIP', trip: updated })
+    // Add the member first, then drop the request (orphan-on-crash is harmless)
+    saveTrip(updated)
+      .then(() => deleteJoinRequest(tripId, req.uid))
+      .catch(console.error)
+    log(tripId, 'member_joined', { memberName: joinedName })
+  }, [log])
+
+  const rejectJoinRequest = useCallback((tripId: string, reqUid: string) => {
+    deleteJoinRequest(tripId, reqUid).catch(console.error)
+  }, [])
+
   return {
     loading,
     loadError,
+    joinRequests,
     trips: state.trips,
     expenses: state.expenses,
     activeTripId: state.activeTripId,
@@ -348,5 +405,7 @@ export function useStore(uid: string | null) {
     addMembers,
     removeMember,
     toggleSettlementPaid,
+    approveJoinRequest,
+    rejectJoinRequest,
   }
 }

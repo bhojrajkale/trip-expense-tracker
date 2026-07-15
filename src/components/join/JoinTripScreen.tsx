@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { TripPreview } from '../../types'
 import type { User } from '../../utils/auth'
-import { getTripPreview, getTripForClaim, joinAsNewMember, claimMember } from '../../utils/firestore'
+import { getTripPreview, getJoinRequest, requestToJoin, subscribeJoinRequest } from '../../utils/firestore'
 import { initials, formatDate } from '../../utils/format'
 
 interface Props {
@@ -11,25 +11,27 @@ interface Props {
   onDone: (tripId: string | null) => void
 }
 
-type Phase = 'loading' | 'invalid' | 'preview' | 'joining' | 'error'
+type Phase = 'loading' | 'invalid' | 'preview' | 'requesting' | 'pending' | 'declined' | 'error'
 
 export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>('loading')
   const [trip, setTrip] = useState<TripPreview | null>(null)
   const [claimId, setClaimId] = useState<string | null>(null)
 
+  // Load the preview; short-circuit if already a member or already requested.
   useEffect(() => {
     let cancelled = false
-    getTripPreview(tripId).then((t) => {
+    getTripPreview(tripId).then(async (t) => {
       if (cancelled) return
       if (!t) {
         setPhase('invalid')
       } else if (t.memberUids.includes(user.uid)) {
-        // Already a member — go straight in
         onDone(tripId)
       } else {
         setTrip(t)
-        setPhase('preview')
+        const existing = await getJoinRequest(tripId, user.uid)
+        if (cancelled) return
+        setPhase(existing ? 'pending' : 'preview')
       }
     })
     return () => {
@@ -38,29 +40,36 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId, user.uid])
 
-  async function handleJoin() {
-    if (!trip) return
-    setPhase('joining')
-    const joiningUser = {
-      uid: user.uid,
-      displayName: user.displayName,
-      email: user.email,
-      photoURL: user.photoURL,
-    }
-    try {
-      if (claimId) {
-        // Claiming requires the full trip (other members' data must be
-        // preserved while rewriting the array) — fetched now, only for
-        // this deliberate action, never eagerly on page load.
-        const fullTrip = await getTripForClaim(tripId)
-        if (!fullTrip) throw new Error('trip not found')
-        await claimMember(tripId, joiningUser, fullTrip, claimId)
-      } else {
-        await joinAsNewMember(tripId, joiningUser)
+  // While pending, watch our own request doc. It disappears when the owner
+  // approves (after adding us to the trip) or declines — re-check membership
+  // to tell the two apart.
+  useEffect(() => {
+    if (phase !== 'pending') return
+    let seen = false
+    return subscribeJoinRequest(tripId, user.uid, async (req) => {
+      if (req) {
+        seen = true
+        return
       }
-      onDone(tripId)
+      if (!seen) return // initial snapshot with no doc yet — ignore
+      const t = await getTripPreview(tripId)
+      if (t?.memberUids.includes(user.uid)) onDone(tripId)
+      else setPhase('declined')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, tripId, user.uid])
+
+  async function handleRequest() {
+    setPhase('requesting')
+    try {
+      await requestToJoin(
+        tripId,
+        { uid: user.uid, displayName: user.displayName, email: user.email, photoURL: user.photoURL },
+        claimId ?? undefined
+      )
+      setPhase('pending')
     } catch (e) {
-      console.error('join failed', e)
+      console.error('join request failed', e)
       setPhase('error')
     }
   }
@@ -78,12 +87,12 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
       <Shell>
         <span className="text-5xl mb-4">🔗</span>
         <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">
-          {phase === 'invalid' ? 'Invalid invite link' : 'Could not join'}
+          {phase === 'invalid' ? 'Invalid invite link' : 'Could not send request'}
         </h1>
         <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">
           {phase === 'invalid'
             ? 'This trip may have been deleted, or the link is incomplete.'
-            : 'Something went wrong while joining. Please try the link again.'}
+            : 'Something went wrong. Please try the link again.'}
         </p>
         <button
           onClick={() => onDone(null)}
@@ -95,7 +104,45 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
     )
   }
 
+  if (phase === 'pending') {
+    return (
+      <Shell>
+        <span className="text-5xl mb-4">⏳</span>
+        <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">Request sent</h1>
+        <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">
+          Waiting for the trip owner to approve you{trip ? ` for ${trip.name}` : ''}. You'll be let
+          in automatically once they do — you can leave this page open or check back later.
+        </p>
+        <button
+          onClick={() => onDone(null)}
+          className="text-[var(--muted)] text-sm active:opacity-60"
+        >
+          Back to my trips
+        </button>
+      </Shell>
+    )
+  }
+
+  if (phase === 'declined') {
+    return (
+      <Shell>
+        <span className="text-5xl mb-4">🚫</span>
+        <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">Request declined</h1>
+        <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">
+          The trip owner didn't approve your request to join{trip ? ` ${trip.name}` : ''}.
+        </p>
+        <button
+          onClick={() => onDone(null)}
+          className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-sm active:scale-95 transition-transform"
+        >
+          Back to my trips
+        </button>
+      </Shell>
+    )
+  }
+
   const unclaimed = trip!.members.filter((m) => !m.uid)
+  const busy = phase === 'requesting'
 
   return (
     <Shell>
@@ -162,15 +209,15 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
       )}
 
       <button
-        onClick={handleJoin}
-        disabled={phase === 'joining'}
+        onClick={handleRequest}
+        disabled={busy}
         className="w-full max-w-sm py-3.5 rounded-full bg-[var(--action)] text-white font-medium text-base disabled:opacity-50 active:scale-95 transition-transform"
       >
-        {phase === 'joining'
-          ? 'Joining…'
+        {busy
+          ? 'Sending…'
           : claimId
-            ? `Join as ${trip!.members.find((m) => m.id === claimId)?.name}`
-            : 'Join as new member'}
+            ? `Request to join as ${trip!.members.find((m) => m.id === claimId)?.name}`
+            : 'Request to join'}
       </button>
 
       <button

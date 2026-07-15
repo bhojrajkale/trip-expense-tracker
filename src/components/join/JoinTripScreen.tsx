@@ -11,7 +11,7 @@ interface Props {
   onDone: (tripId: string | null) => void
 }
 
-type Phase = 'loading' | 'invalid' | 'preview' | 'requesting' | 'pending' | 'declined' | 'error'
+type Phase = 'loading' | 'invalid' | 'denied' | 'preview' | 'requesting' | 'pending' | 'declined' | 'error'
 
 export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -21,19 +21,25 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   // Load the preview; short-circuit if already a member or already requested.
   useEffect(() => {
     let cancelled = false
-    getTripPreview(tripId).then(async (t) => {
-      if (cancelled) return
-      if (!t) {
-        setPhase('invalid')
-      } else if (t.memberUids.includes(user.uid)) {
-        onDone(tripId)
-      } else {
-        setTrip(t)
-        const existing = await getJoinRequest(tripId, user.uid)
+    getTripPreview(tripId)
+      .then(async (t) => {
         if (cancelled) return
-        setPhase(existing ? 'pending' : 'preview')
-      }
-    })
+        if (!t) {
+          setPhase('invalid')
+        } else if (t.memberUids.includes(user.uid)) {
+          onDone(tripId)
+        } else {
+          setTrip(t)
+          const existing = await getJoinRequest(tripId, user.uid)
+          if (cancelled) return
+          setPhase(existing ? 'pending' : 'preview')
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return
+        console.error('preview load failed', e)
+        setPhase('denied')
+      })
     return () => {
       cancelled = true
     }
@@ -82,23 +88,25 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
     )
   }
 
-  if (phase === 'invalid' || phase === 'error') {
+  if (phase === 'invalid' || phase === 'error' || phase === 'denied') {
     return (
       <Shell>
         <span className="text-5xl mb-4">🔗</span>
         <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">
-          {phase === 'invalid' ? 'Invalid invite link' : 'Could not send request'}
+          {phase === 'invalid' ? 'Invalid invite link' : phase === 'denied' ? 'Could not load invite' : 'Could not send request'}
         </h1>
         <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">
           {phase === 'invalid'
             ? 'This trip may have been deleted, or the link is incomplete.'
-            : 'Something went wrong. Please try the link again.'}
+            : phase === 'denied'
+              ? "This can happen right after an app update — try reloading the page. If it keeps happening, ask for a fresh invite link."
+              : 'Something went wrong. Please try the link again.'}
         </p>
         <button
-          onClick={() => onDone(null)}
+          onClick={() => (phase === 'denied' ? location.reload() : onDone(null))}
           className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-sm active:scale-95 transition-transform"
         >
-          Continue to my trips
+          {phase === 'denied' ? 'Reload' : 'Continue to my trips'}
         </button>
       </Shell>
     )

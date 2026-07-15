@@ -138,12 +138,16 @@ export async function removeExpense(tripId: string, expenseId: string): Promise<
 
 // Safe pre-join read: only name/destination/dates/member names+ids, no PII.
 // Any signed-in user with the trip id may read this (see firestore.rules
-// `tripsPreview`). Returns null for missing/denied.
+// `tripsPreview`). Returns null for a genuinely missing doc; RETHROWS on
+// permission-denied so the caller can tell "no such trip" apart from "rules
+// rejected this" instead of showing the same generic error for both.
 export async function getTripPreview(tripId: string): Promise<TripPreview | null> {
   try {
     const snap = await getDoc(previewDoc(tripId))
     return snap.exists() ? (snap.data() as TripPreview) : null
-  } catch {
+  } catch (err) {
+    console.error('getTripPreview failed', err)
+    if ((err as { code?: string }).code === 'permission-denied') throw err
     return null
   }
 }

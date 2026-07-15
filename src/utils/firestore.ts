@@ -62,12 +62,19 @@ function buildPreview(trip: Trip): TripPreview {
 
 // ─── Realtime subscriptions ─────────────────────────────────────────────────
 
-export function subscribeTrips(uid: string, cb: (trips: Trip[]) => void): Unsubscribe {
+export function subscribeTrips(
+  uid: string,
+  cb: (trips: Trip[]) => void,
+  onError?: (err: { code?: string }) => void
+): Unsubscribe {
   const q = query(tripsCol, where('memberUids', 'array-contains', uid))
   return onSnapshot(
     q,
     (snap) => cb(snap.docs.map((d) => d.data() as Trip)),
-    (err) => console.error('trips listener error', err)
+    (err) => {
+      console.error('trips listener error', err)
+      onError?.(err)
+    }
   )
 }
 

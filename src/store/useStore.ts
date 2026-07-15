@@ -81,8 +81,14 @@ function reducer(state: State, action: Action): State {
   }
 }
 
+// 'denied' = Firestore rejected the read (e.g. account not on the allowlist);
+// 'network' = transient/offline. Lets the UI show an honest screen instead of
+// hanging forever on the loading state.
+export type LoadError = 'denied' | 'network' | null
+
 export function useStore(uid: string | null) {
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<LoadError>(null)
   const [state, dispatch] = useReducer(reducer, { trips: [], expenses: [], activeTripId: null })
 
   // Always-current ref so callbacks don't go stale
@@ -106,6 +112,7 @@ export function useStore(uid: string | null) {
     }
 
     setLoading(true)
+    setLoadError(null)
     let unsub: (() => void) | undefined
     let cancelled = false
 
@@ -113,27 +120,37 @@ export function useStore(uid: string | null) {
       .catch((e) => console.error('migration failed (will retry next login)', e))
       .then(() => {
         if (cancelled) return
-        unsub = subscribeTrips(uid, (trips) => {
-          dispatch({ type: 'SET_TRIPS', trips })
+        unsub = subscribeTrips(
+          uid,
+          (trips) => {
+            dispatch({ type: 'SET_TRIPS', trips })
 
-          const ids = new Set(trips.map((t) => t.id))
-          const current = stateRef.current.activeTripId
-          if (!current) {
-            const savedId = loadActiveTripId()
-            const activeId =
-              trips.find((t) => t.id === savedId)?.id ??
-              trips.find((t) => !t.archived)?.id ??
-              trips[0]?.id ??
-              null
-            dispatch({ type: 'SET_ACTIVE_TRIP', id: activeId })
-          } else if (!ids.has(current) && prevTripIdsRef.current.has(current)) {
-            // Trip disappeared (deleted, or we were removed) — fall back
-            const fallback = trips.find((t) => !t.archived) ?? trips[0]
-            dispatch({ type: 'SET_ACTIVE_TRIP', id: fallback?.id ?? null })
+            const ids = new Set(trips.map((t) => t.id))
+            const current = stateRef.current.activeTripId
+            if (!current) {
+              const savedId = loadActiveTripId()
+              const activeId =
+                trips.find((t) => t.id === savedId)?.id ??
+                trips.find((t) => !t.archived)?.id ??
+                trips[0]?.id ??
+                null
+              dispatch({ type: 'SET_ACTIVE_TRIP', id: activeId })
+            } else if (!ids.has(current) && prevTripIdsRef.current.has(current)) {
+              // Trip disappeared (deleted, or we were removed) — fall back
+              const fallback = trips.find((t) => !t.archived) ?? trips[0]
+              dispatch({ type: 'SET_ACTIVE_TRIP', id: fallback?.id ?? null })
+            }
+            prevTripIdsRef.current = ids
+            setLoadError(null)
+            setLoading(false)
+          },
+          (err) => {
+            // Never leave the app stuck on the loading screen — surface it.
+            if (cancelled) return
+            setLoadError(err.code === 'permission-denied' ? 'denied' : 'network')
+            setLoading(false)
           }
-          prevTripIdsRef.current = ids
-          setLoading(false)
-        })
+        )
       })
 
     return () => {
@@ -313,6 +330,7 @@ export function useStore(uid: string | null) {
 
   return {
     loading,
+    loadError,
     trips: state.trips,
     expenses: state.expenses,
     activeTripId: state.activeTripId,

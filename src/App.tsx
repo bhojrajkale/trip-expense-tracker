@@ -82,8 +82,27 @@ export default function App() {
     return <LoginScreen joinPending={!!pendingJoin} />
   }
 
-  if (ALLOWED_UIDS.length > 0 && !ALLOWED_UIDS.includes(user.uid)) {
+  // Firestore denied this account (client allowlist off but no server-side
+  // allowlist entry) — show the same honest "not on the access list" screen
+  // instead of hanging on the loading spinner forever.
+  if ((ALLOWED_UIDS.length > 0 && !ALLOWED_UIDS.includes(user.uid)) || store.loadError === 'denied') {
     return <UnauthorizedScreen email={user.email} />
+  }
+
+  if (store.loadError === 'network') {
+    return (
+      <div className="flex flex-col items-center justify-center bg-[var(--bg)] p-8 text-center" style={{ minHeight: '100dvh' }}>
+        <span className="text-5xl mb-4">📡</span>
+        <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">Couldn't load your trips</h1>
+        <p className="text-[var(--muted)] text-sm mb-6 max-w-xs">Check your connection and try again.</p>
+        <button
+          onClick={() => location.reload()}
+          className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-sm active:scale-95 transition-transform"
+        >
+          Retry
+        </button>
+      </div>
+    )
   }
 
   if (pendingJoin) {

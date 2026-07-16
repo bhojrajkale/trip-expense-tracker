@@ -17,17 +17,26 @@ import {
 } from '../utils/firestore'
 
 // Pure: how an approved join request folds into a trip's members. Isolated
-// from useStore so the three branches (claim / already-a-member / new) can
-// be read and tested without the surrounding dispatch/save/log plumbing.
+// from useStore so the four branches (claim / conflicting claim /
+// already-a-member / new) can be read and tested without the surrounding
+// dispatch/save/log plumbing.
 function mergeApprovedMember(
   members: Member[],
   req: JoinRequest
-): { members: Member[]; joinedName: string; changed: boolean } {
+): { members: Member[]; joinedName: string; changed: boolean; conflict: boolean } {
   const claimTarget = req.claimMemberId && members.find((m) => m.id === req.claimMemberId)
   if (claimTarget) {
     if (claimTarget.uid === req.uid) {
       // Already claimed by this same account (double-approve) — nothing to change
-      return { members, joinedName: claimTarget.name, changed: false }
+      return { members, joinedName: claimTarget.name, changed: false, conflict: false }
+    }
+    if (claimTarget.uid) {
+      // This member is already linked to a DIFFERENT account than the
+      // requester — approving would silently steal that person's identity
+      // (they'd vanish from memberUids and lose all trip access). The
+      // preview's members[].uid is visible to any invite-link holder, so a
+      // request can name any already-claimed member on purpose. Refuse.
+      return { members, joinedName: claimTarget.name, changed: false, conflict: true }
     }
     // Claim: link the account onto the chosen offline member entry
     return {
@@ -38,11 +47,12 @@ function mergeApprovedMember(
       ),
       joinedName: claimTarget.name,
       changed: true,
+      conflict: false,
     }
   }
   if (members.some((m) => m.uid === req.uid)) {
     // Already a member (double-approve) — nothing to change
-    return { members, joinedName: req.name, changed: false }
+    return { members, joinedName: req.name, changed: false, conflict: false }
   }
   return {
     members: [
@@ -51,6 +61,7 @@ function mergeApprovedMember(
     ],
     joinedName: req.name,
     changed: true,
+    conflict: false,
   }
 }
 
@@ -404,17 +415,25 @@ export function useStore(uid: string | null) {
   // Owner approves a pending join request: add the requester as a member
   // (idempotent — keyed by uid, so re-approving never duplicates), then delete
   // the request. Done owner-side because only the owner can add to memberUids.
+  // Returns 'approved' | 'already-member' | 'conflict' so the caller can
+  // show the owner a clear signal instead of an approval silently no-op'ing.
   const approveJoinRequest = useCallback((tripId: string, req: JoinRequest) => {
     const trip = stateRef.current.trips.find((t) => t.id === tripId)
-    if (!trip) return
+    if (!trip) return 'already-member' as const
 
-    const { members, joinedName, changed } = mergeApprovedMember(trip.members, req)
+    const { members, joinedName, changed, conflict } = mergeApprovedMember(trip.members, req)
+
+    if (conflict) {
+      // Refuse the write entirely — leave the request in place so the owner
+      // can inspect and explicitly decline it themselves.
+      return 'conflict' as const
+    }
 
     if (!changed) {
       // Double-approve of someone already a member — just clear the stale
       // request, no trip write or duplicate "joined" activity entry needed.
       deleteJoinRequest(tripId, req.uid).catch(console.error)
-      return
+      return 'already-member' as const
     }
 
     const updated: Trip = { ...trip, members, memberUids: memberUidsFor({ ...trip, members }) }
@@ -424,6 +443,7 @@ export function useStore(uid: string | null) {
       .then(() => deleteJoinRequest(tripId, req.uid))
       .catch(console.error)
     log(tripId, 'member_joined', { memberName: joinedName })
+    return 'approved' as const
   }, [log])
 
   const rejectJoinRequest = useCallback((tripId: string, reqUid: string) => {

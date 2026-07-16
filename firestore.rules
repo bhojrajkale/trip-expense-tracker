@@ -44,6 +44,42 @@ service cloud.firestore {
         return newMembers.size() >= oldMembers.size() && newMembers.hasAll(oldMembers);
       }
 
+      // hasAll() above only guarantees EXISTING entries survive unmutated —
+      // it says nothing about NEWLY appended ones. Without this, a non-owner
+      // member could append a fabricated entry pre-stamped with a real
+      // friend's uid, poisoning approveJoinRequest's dedup check later (it
+      // would mistake the plant for that friend's real, legitimate join and
+      // silently discard it). Only the owner's approval path may stamp a
+      // uid onto a member — appends via this (non-owner) branch must be bare
+      // offline placeholders. Rules have no loop construct, so this is
+      // bounded + index-unrolled up to 20 new entries in one write (ample
+      // for a Contacts-picker bulk add); exceeding it just fails the write,
+      // which is a client UX inconvenience, not a security hole.
+      function isValidNewMembers(oldMembers, newMembers) {
+        let added = newMembers.removeAll(oldMembers);
+        return added.size() <= 20
+          && (added.size() < 1  || !('uid' in added[0]))
+          && (added.size() < 2  || !('uid' in added[1]))
+          && (added.size() < 3  || !('uid' in added[2]))
+          && (added.size() < 4  || !('uid' in added[3]))
+          && (added.size() < 5  || !('uid' in added[4]))
+          && (added.size() < 6  || !('uid' in added[5]))
+          && (added.size() < 7  || !('uid' in added[6]))
+          && (added.size() < 8  || !('uid' in added[7]))
+          && (added.size() < 9  || !('uid' in added[8]))
+          && (added.size() < 10 || !('uid' in added[9]))
+          && (added.size() < 11 || !('uid' in added[10]))
+          && (added.size() < 12 || !('uid' in added[11]))
+          && (added.size() < 13 || !('uid' in added[12]))
+          && (added.size() < 14 || !('uid' in added[13]))
+          && (added.size() < 15 || !('uid' in added[14]))
+          && (added.size() < 16 || !('uid' in added[15]))
+          && (added.size() < 17 || !('uid' in added[16]))
+          && (added.size() < 18 || !('uid' in added[17]))
+          && (added.size() < 19 || !('uid' in added[18]))
+          && (added.size() < 20 || !('uid' in added[19]));
+      }
+
       // Full trip doc (incl. member email/photoURL) is members-only. Non-members
       // with an invite link read the PII-free tripsPreview instead. Joining is
       // never a direct write here — it goes through joinRequests + owner approval.
@@ -65,7 +101,8 @@ service cloud.firestore {
           request.auth.uid == resource.data.ownerUid
           || (isMember()
               && request.resource.data.memberUids == resource.data.memberUids
-              && isMembersGrowthOnly(resource.data.members, request.resource.data.members))
+              && isMembersGrowthOnly(resource.data.members, request.resource.data.members)
+              && isValidNewMembers(resource.data.members, request.resource.data.members))
         );
 
       allow delete: if signedIn() && request.auth.uid == resource.data.ownerUid;

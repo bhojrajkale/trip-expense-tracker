@@ -16,7 +16,7 @@ interface Props {
   onAddMembers: (members: Member[]) => void
   onRemoveMember: (memberId: string) => void
   onToggleSettlementPaid: (from: string, to: string) => void
-  onApproveRequest: (req: JoinRequest) => void
+  onApproveRequest: (req: JoinRequest) => 'approved' | 'already-member' | 'conflict'
   onRejectRequest: (reqUid: string) => void
 }
 
@@ -69,6 +69,16 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
 
   const memberName = (id: string) =>
     trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  function handleApprove(req: JoinRequest) {
+    const result = onApproveRequest(req)
+    if (result === 'conflict') {
+      // Refused, not auto-declined — the request is still sitting there for
+      // the owner to inspect/decline themselves; we just wouldn't write it.
+      setToast("Not approved — that person is already linked to someone else")
+      setTimeout(() => setToast(''), 3500)
+    }
+  }
 
   async function handleShareSettlement(from: string, to: string, amount: number) {
     const text = `Hey ${memberName(from)}, just a reminder — you owe ${memberName(to)} ${formatINR(amount)} for ${trip.name}.\n\nPlease transfer when you get a chance! 🙏`
@@ -142,9 +152,13 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
           </h3>
           <div className="space-y-2">
             {joinRequests.map((req) => {
-              const claimName = req.claimMemberId
-                ? trip.members.find((m) => m.id === req.claimMemberId)?.name
+              const claimTarget = req.claimMemberId
+                ? trip.members.find((m) => m.id === req.claimMemberId)
                 : null
+              const claimName = claimTarget?.name ?? null
+              // Someone else already linked this member — approving would
+              // silently steal their identity (see mergeApprovedMember).
+              const claimConflict = !!claimTarget?.uid && claimTarget.uid !== req.uid
               return (
                 <div
                   key={req.uid}
@@ -159,8 +173,12 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-[var(--ink)] truncate">{req.name}</div>
-                    <div className="text-xs text-[var(--muted)] truncate">
-                      {claimName ? `wants to join as ${claimName}` : 'wants to join'}
+                    <div className={`text-xs truncate ${claimConflict ? 'text-[var(--red)] font-medium' : 'text-[var(--muted)]'}`}>
+                      {claimConflict
+                        ? `⚠️ wants to join as ${claimName} — already linked to someone else`
+                        : claimName
+                          ? `wants to join as ${claimName}`
+                          : 'wants to join'}
                     </div>
                   </div>
                   <button
@@ -170,7 +188,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                     Decline
                   </button>
                   <button
-                    onClick={() => onApproveRequest(req)}
+                    onClick={() => handleApprove(req)}
                     className="text-xs font-medium text-white px-3 py-1.5 rounded-full bg-[var(--action)] active:scale-95 transition-transform"
                   >
                     Approve

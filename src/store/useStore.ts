@@ -25,6 +25,10 @@ function mergeApprovedMember(
 ): { members: Member[]; joinedName: string; changed: boolean } {
   const claimTarget = req.claimMemberId && members.find((m) => m.id === req.claimMemberId)
   if (claimTarget) {
+    if (claimTarget.uid === req.uid) {
+      // Already claimed by this same account (double-approve) — nothing to change
+      return { members, joinedName: claimTarget.name, changed: false }
+    }
     // Claim: link the account onto the chosen offline member entry
     return {
       members: members.map((m) =>

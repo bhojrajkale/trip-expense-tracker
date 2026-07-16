@@ -91,7 +91,10 @@ export default function App() {
     return <UnauthorizedScreen email={user.email} />
   }
 
-  if (store.loadError === 'network') {
+  // Same pendingJoin exclusion as above: a network hiccup on the main trips
+  // subscription shouldn't block a mid-join user, whose reads (getTripPreview/
+  // getJoinRequest) are independent and might well succeed on their own.
+  if (store.loadError === 'network' && !pendingJoin) {
     return (
       <div className="flex flex-col items-center justify-center bg-[var(--bg)] p-8 text-center" style={{ minHeight: '100dvh' }}>
         <span className="text-5xl mb-4">📡</span>

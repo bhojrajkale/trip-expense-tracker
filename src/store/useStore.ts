@@ -239,7 +239,13 @@ export function useStore(uid: string | null) {
       setJoinRequests([])
       return
     }
-    return subscribeJoinRequests(state.activeTripId, setJoinRequests, () => setJoinRequests([]))
+    return subscribeJoinRequests(state.activeTripId, setJoinRequests, (err) => {
+      // The listener already console.errors internally; this just makes it
+      // explicit that an empty list here may mean "couldn't load," not
+      // "no pending requests" — same transient-error class as subscribeTrips.
+      console.error('pending join requests unavailable', err)
+      setJoinRequests([])
+    })
   }, [uid, state.activeTripId, activeOwnerUid])
 
   const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null

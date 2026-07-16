@@ -40,8 +40,9 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
         }
       })
       .catch((e) => {
+        // getTripPreview/getJoinRequest already console.error internally —
+        // just route the phase here.
         if (cancelled) return
-        console.error('preview load failed', e)
         setPhase(isPermissionDenied(e) ? 'denied' : 'network')
       })
     return () => {
@@ -69,7 +70,7 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
       } catch (e) {
         // Request doc is gone but we couldn't confirm approval vs decline —
         // don't guess either way, surface it so the user can retry.
-        console.error('post-approval recheck failed', e)
+        // (getTripPreview already console.error'd internally.)
         setPhase(isPermissionDenied(e) ? 'denied' : 'network')
       }
     })

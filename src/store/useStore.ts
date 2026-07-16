@@ -16,6 +16,40 @@ import {
   memberUidsFor,
 } from '../utils/firestore'
 
+// Pure: how an approved join request folds into a trip's members. Isolated
+// from useStore so the three branches (claim / already-a-member / new) can
+// be read and tested without the surrounding dispatch/save/log plumbing.
+function mergeApprovedMember(
+  members: Member[],
+  req: JoinRequest
+): { members: Member[]; joinedName: string; changed: boolean } {
+  const claimTarget = req.claimMemberId && members.find((m) => m.id === req.claimMemberId)
+  if (claimTarget) {
+    // Claim: link the account onto the chosen offline member entry
+    return {
+      members: members.map((m) =>
+        m.id === req.claimMemberId
+          ? { ...m, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined }
+          : m
+      ),
+      joinedName: claimTarget.name,
+      changed: true,
+    }
+  }
+  if (members.some((m) => m.uid === req.uid)) {
+    // Already a member (double-approve) — nothing to change
+    return { members, joinedName: req.name, changed: false }
+  }
+  return {
+    members: [
+      ...members,
+      { id: crypto.randomUUID(), name: req.name, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined },
+    ],
+    joinedName: req.name,
+    changed: true,
+  }
+}
+
 interface State {
   trips: Trip[]
   expenses: Expense[] // active trip's expenses only (realtime subscription)
@@ -364,26 +398,13 @@ export function useStore(uid: string | null) {
     const trip = stateRef.current.trips.find((t) => t.id === tripId)
     if (!trip) return
 
-    let members: Member[]
-    let joinedName: string
-    if (req.claimMemberId && trip.members.some((m) => m.id === req.claimMemberId)) {
-      // Claim: link the account onto the chosen offline member entry
-      members = trip.members.map((m) =>
-        m.id === req.claimMemberId
-          ? { ...m, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined }
-          : m
-      )
-      joinedName = trip.members.find((m) => m.id === req.claimMemberId)?.name ?? req.name
-    } else if (trip.members.some((m) => m.uid === req.uid)) {
-      // Already a member (double-approve) — just clear the request
-      members = trip.members
-      joinedName = req.name
-    } else {
-      members = [
-        ...trip.members,
-        { id: crypto.randomUUID(), name: req.name, uid: req.uid, email: req.email ?? undefined, photoURL: req.photoURL ?? undefined },
-      ]
-      joinedName = req.name
+    const { members, joinedName, changed } = mergeApprovedMember(trip.members, req)
+
+    if (!changed) {
+      // Double-approve of someone already a member — just clear the stale
+      // request, no trip write or duplicate "joined" activity entry needed.
+      deleteJoinRequest(tripId, req.uid).catch(console.error)
+      return
     }
 
     const updated: Trip = { ...trip, members, memberUids: memberUidsFor({ ...trip, members }) }

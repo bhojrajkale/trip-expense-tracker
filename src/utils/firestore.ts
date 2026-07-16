@@ -144,17 +144,17 @@ export async function removeExpense(tripId: string, expenseId: string): Promise<
 
 // Safe pre-join read: only name/destination/dates/member names+ids, no PII.
 // Any signed-in user with the trip id may read this (see firestore.rules
-// `tripsPreview`). Returns null for a genuinely missing doc; RETHROWS on
-// permission-denied so the caller can tell "no such trip" apart from "rules
-// rejected this" instead of showing the same generic error for both.
+// `tripsPreview`). Returns null for a genuinely missing doc; RETHROWS on any
+// read error (permission-denied, offline, unavailable, …) so the caller can
+// tell "no such trip" apart from "couldn't check" instead of collapsing a
+// transient network failure into the same "this link is broken" message.
 export async function getTripPreview(tripId: string): Promise<TripPreview | null> {
   try {
     const snap = await getDoc(previewDoc(tripId))
     return snap.exists() ? (snap.data() as TripPreview) : null
   } catch (err) {
     console.error('getTripPreview failed', err)
-    if ((err as { code?: string }).code === 'permission-denied') throw err
-    return null
+    throw err
   }
 }
 
@@ -186,12 +186,16 @@ export async function requestToJoin(
   )
 }
 
+// Returns null only for a genuinely missing request; RETHROWS on any read
+// error, same reasoning as getTripPreview — a caller that swallowed this
+// would show "no pending request" when it actually just couldn't check.
 export async function getJoinRequest(tripId: string, uid: string): Promise<JoinRequest | null> {
   try {
     const snap = await getDoc(joinRequestDoc(tripId, uid))
     return snap.exists() ? (snap.data() as JoinRequest) : null
-  } catch {
-    return null
+  } catch (err) {
+    console.error('getJoinRequest failed', err)
+    throw err
   }
 }
 

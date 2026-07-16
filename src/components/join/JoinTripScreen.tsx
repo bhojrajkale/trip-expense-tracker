@@ -11,7 +11,11 @@ interface Props {
   onDone: (tripId: string | null) => void
 }
 
-type Phase = 'loading' | 'invalid' | 'denied' | 'preview' | 'requesting' | 'pending' | 'declined' | 'error'
+type Phase = 'loading' | 'invalid' | 'denied' | 'network' | 'preview' | 'requesting' | 'pending' | 'declined' | 'error'
+
+function isPermissionDenied(err: unknown): boolean {
+  return (err as { code?: string } | undefined)?.code === 'permission-denied'
+}
 
 export default function JoinTripScreen({ tripId, user, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>('loading')
@@ -38,7 +42,7 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
       .catch((e) => {
         if (cancelled) return
         console.error('preview load failed', e)
-        setPhase('denied')
+        setPhase(isPermissionDenied(e) ? 'denied' : 'network')
       })
     return () => {
       cancelled = true
@@ -58,9 +62,16 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
         return
       }
       if (!seen) return // initial snapshot with no doc yet — ignore
-      const t = await getTripPreview(tripId)
-      if (t?.memberUids.includes(user.uid)) onDone(tripId)
-      else setPhase('declined')
+      try {
+        const t = await getTripPreview(tripId)
+        if (t?.memberUids.includes(user.uid)) onDone(tripId)
+        else setPhase('declined')
+      } catch (e) {
+        // Request doc is gone but we couldn't confirm approval vs decline —
+        // don't guess either way, surface it so the user can retry.
+        console.error('post-approval recheck failed', e)
+        setPhase(isPermissionDenied(e) ? 'denied' : 'network')
+      }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, tripId, user.uid])
@@ -88,25 +99,44 @@ export default function JoinTripScreen({ tripId, user, onDone }: Props) {
     )
   }
 
-  if (phase === 'invalid' || phase === 'error' || phase === 'denied') {
+  if (phase === 'invalid' || phase === 'error' || phase === 'denied' || phase === 'network') {
+    const copy = {
+      invalid: {
+        title: 'Invalid invite link',
+        body: 'This trip may have been deleted, or the link is incomplete.',
+        cta: 'Continue to my trips',
+        reload: false,
+      },
+      denied: {
+        title: 'Could not load invite',
+        body: "This can happen right after an app update — try reloading the page. If it keeps happening, ask for a fresh invite link.",
+        cta: 'Reload',
+        reload: true,
+      },
+      network: {
+        title: 'Connection problem',
+        body: 'Check your internet connection and try again.',
+        cta: 'Retry',
+        reload: true,
+      },
+      error: {
+        title: 'Could not send request',
+        body: 'Something went wrong. Please try the link again.',
+        cta: 'Continue to my trips',
+        reload: false,
+      },
+    }[phase]
+
     return (
       <Shell>
         <span className="text-5xl mb-4">🔗</span>
-        <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">
-          {phase === 'invalid' ? 'Invalid invite link' : phase === 'denied' ? 'Could not load invite' : 'Could not send request'}
-        </h1>
-        <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">
-          {phase === 'invalid'
-            ? 'This trip may have been deleted, or the link is incomplete.'
-            : phase === 'denied'
-              ? "This can happen right after an app update — try reloading the page. If it keeps happening, ask for a fresh invite link."
-              : 'Something went wrong. Please try the link again.'}
-        </p>
+        <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">{copy.title}</h1>
+        <p className="text-[var(--muted)] text-sm mb-8 max-w-xs">{copy.body}</p>
         <button
-          onClick={() => (phase === 'denied' ? location.reload() : onDone(null))}
+          onClick={() => (copy.reload ? location.reload() : onDone(null))}
           className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-sm active:scale-95 transition-transform"
         >
-          {phase === 'denied' ? 'Reload' : 'Continue to my trips'}
+          {copy.cta}
         </button>
       </Shell>
     )

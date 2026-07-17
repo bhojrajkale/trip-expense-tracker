@@ -89,6 +89,15 @@
     box-sizing: border-box;
   }
 
+  /* Bump the root size ~6% so all rem-based text and spacing scale up a
+     touch — the UI reads a little small at the default 16px on iPhone.
+     Set on html ONLY (not the combined selector below) so it doesn't
+     compound across body/#root. Percentage keeps it relative to the
+     user's browser font-size preference. */
+  html {
+    font-size: 106.25%;
+  }
+
   html, body, #root {
     height: 100%;
     margin: 0;

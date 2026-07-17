@@ -15,16 +15,19 @@ interface Props {
   onAddMember: (member: Member) => void
   onAddMembers: (members: Member[]) => void
   onRemoveMember: (memberId: string) => void
+  onRenameMember: (memberId: string, name: string) => void
   onToggleSettlementPaid: (from: string, to: string) => void
   onApproveRequest: (req: JoinRequest) => 'approved' | 'already-member' | 'conflict'
   onRejectRequest: (reqUid: string) => void
 }
 
-export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinRequests, onAddMember, onAddMembers, onRemoveMember, onToggleSettlementPaid, onApproveRequest, onRejectRequest }: Props) {
+export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinRequests, onAddMember, onAddMembers, onRemoveMember, onRenameMember, onToggleSettlementPaid, onApproveRequest, onRejectRequest }: Props) {
   const [manualName, setManualName] = useState('')
   const [showManual, setShowManual] = useState(false)
   const [contactsError, setContactsError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
   const [simplified, setSimplified] = useState(true)
   const [showInvite, setShowInvite] = useState(false)
   const [toast, setToast] = useState('')
@@ -69,6 +72,18 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
 
   const memberName = (id: string) =>
     trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  function startEdit(memberId: string, currentName: string) {
+    setEditingId(memberId)
+    setEditName(currentName)
+    setConfirmRemove(null)
+  }
+
+  function saveEdit(memberId: string) {
+    onRenameMember(memberId, editName)
+    setEditingId(null)
+    setEditName('')
+  }
 
   function handleApprove(req: JoinRequest) {
     const result = onApproveRequest(req)
@@ -216,79 +231,124 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
             const bal = balances.get(member.id) ?? 0
             const color = AVATAR_COLORS[idx % AVATAR_COLORS.length]
             const isConfirming = confirmRemove === member.id
+            const isEditing = editingId === member.id
+            const avatar = member.photoURL ? (
+              <img
+                src={member.photoURL}
+                alt={member.name}
+                className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                style={{ backgroundColor: color }}
+              >
+                {initials(member.name)}
+              </div>
+            )
             return (
               <div
                 key={member.id}
                 className="bg-[var(--surface)] rounded-[18px] border border-[var(--hairline)] overflow-hidden"
               >
-                <div className="flex items-center gap-3 p-3">
-                  {member.photoURL ? (
-                    <img
-                      src={member.photoURL}
-                      alt={member.name}
-                      className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+                {isEditing ? (
+                  <div className="flex items-center gap-2 p-3">
+                    {avatar}
+                    <input
+                      className="flex-1 min-w-0 bg-[var(--bg)] border border-[var(--hairline)] rounded-[11px] px-3 py-2 text-sm text-[var(--ink)] focus:outline-none focus:border-[var(--action)]"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(member.id)
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      autoFocus
+                      maxLength={50}
                     />
-                  ) : (
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    >
-                      {initials(member.name)}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[var(--ink)] truncate">
-                      {member.name}
-                      {member.uid === currentUid && <span className="text-[var(--muted)] font-normal"> (you)</span>}
-                    </div>
-                    {member.uid ? (
-                      <div className="text-xs text-[var(--action)]">● linked account</div>
-                    ) : member.phone ? (
-                      <div className="text-xs text-[var(--muted)]">{member.phone}</div>
-                    ) : null}
-                  </div>
-                  <div className="text-right">
-                    <div
-                      className={`text-sm font-semibold ${
-                        bal > 0 ? 'text-[var(--green)]' : bal < 0 ? 'text-[var(--red)]' : 'text-[var(--muted)]'
-                      }`}
-                    >
-                      {bal > 0 ? '+' : ''}{formatINR(Math.round(bal))}
-                    </div>
-                    <div className="text-[10px] text-[var(--muted)]">
-                      {bal > 0 ? 'gets back' : bal < 0 ? 'owes' : 'settled'}
-                    </div>
-                  </div>
-                  {/* Owner can remove any member except themself — leaving
-                      a trip is a separate action (not built yet) and
-                      self-removal would strand the trip with no owner. */}
-                  {!isOwner || member.uid === currentUid ? null : isConfirming ? (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => setConfirmRemove(null)}
-                        className="text-xs text-[var(--muted)] px-2 py-1 rounded-lg border border-[var(--hairline)]"
-                      >
-                        No
-                      </button>
-                      <button
-                        onClick={() => {
-                          onRemoveMember(member.id)
-                          setConfirmRemove(null)
-                        }}
-                        className="text-xs text-[var(--red)] px-2 py-1 rounded-lg border border-[var(--red-border)]"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
                     <button
-                      onClick={() => setConfirmRemove(member.id)}
-                      className="text-[var(--disabled)] text-lg px-1 active:opacity-50"
+                      onClick={() => setEditingId(null)}
+                      className="text-xs text-[var(--muted)] px-2 py-1.5 rounded-lg border border-[var(--hairline)]"
                     >
-                      ×
+                      Cancel
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={() => saveEdit(member.id)}
+                      className="text-xs text-white font-medium px-3 py-1.5 rounded-lg bg-[var(--action)]"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-3">
+                    {avatar}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-[var(--ink)] truncate">
+                        {member.name}
+                        {member.uid === currentUid && <span className="text-[var(--muted)] font-normal"> (you)</span>}
+                      </div>
+                      {member.uid ? (
+                        <div className="text-xs text-[var(--action)]">● linked account</div>
+                      ) : member.phone ? (
+                        <div className="text-xs text-[var(--muted)]">{member.phone}</div>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <div
+                        className={`text-sm font-semibold ${
+                          bal > 0 ? 'text-[var(--green)]' : bal < 0 ? 'text-[var(--red)]' : 'text-[var(--muted)]'
+                        }`}
+                      >
+                        {bal > 0 ? '+' : ''}{formatINR(Math.round(bal))}
+                      </div>
+                      <div className="text-[10px] text-[var(--muted)]">
+                        {bal > 0 ? 'gets back' : bal < 0 ? 'owes' : 'settled'}
+                      </div>
+                    </div>
+                    {/* Owner controls: rename any member (display name — handy
+                        when two accounts share a Google name); remove any
+                        member except themself (self-removal would strand the
+                        trip with no owner). */}
+                    {isOwner && (
+                      isConfirming ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setConfirmRemove(null)}
+                            className="text-xs text-[var(--muted)] px-2 py-1 rounded-lg border border-[var(--hairline)]"
+                          >
+                            No
+                          </button>
+                          <button
+                            onClick={() => {
+                              onRemoveMember(member.id)
+                              setConfirmRemove(null)
+                            }}
+                            className="text-xs text-[var(--red)] px-2 py-1 rounded-lg border border-[var(--red-border)]"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() => startEdit(member.id, member.name)}
+                            title="Rename"
+                            className="text-[var(--action)] text-sm px-1.5 py-1 active:opacity-50"
+                          >
+                            ✏️
+                          </button>
+                          {member.uid !== currentUid && (
+                            <button
+                              onClick={() => setConfirmRemove(member.id)}
+                              className="text-[var(--disabled)] text-lg px-1 active:opacity-50"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}

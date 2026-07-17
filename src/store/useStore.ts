@@ -400,6 +400,25 @@ export function useStore(uid: string | null) {
     [addMembers]
   )
 
+  // Owner renames a member for display (e.g. to disambiguate two accounts
+  // with the same Google name). Only touches the name; uid/email/photoURL
+  // stay put. saveTrip recomputes memberUids and refreshes the preview, so
+  // the new name flows to every screen that reads trip.members.
+  const renameMember = useCallback((tripId: string, memberId: string, name: string) => {
+    const trimmed = name.trim().slice(0, 50)
+    if (!trimmed) return
+    const trip = stateRef.current.trips.find((t) => t.id === tripId)
+    if (!trip) return
+    const before = trip.members.find((m) => m.id === memberId)?.name
+    if (!before || before === trimmed) return
+    const updated: Trip = {
+      ...trip,
+      members: trip.members.map((m) => (m.id === memberId ? { ...m, name: trimmed } : m)),
+    }
+    dispatch({ type: 'UPDATE_TRIP', trip: updated })
+    saveTrip(updated).catch(console.error)
+  }, [])
+
   const removeMember = useCallback((tripId: string, memberId: string) => {
     const removedName = stateRef.current.trips
       .find((t) => t.id === tripId)?.members.find((m) => m.id === memberId)?.name
@@ -470,6 +489,7 @@ export function useStore(uid: string | null) {
     addMember,
     addMembers,
     removeMember,
+    renameMember,
     toggleSettlementPaid,
     approveJoinRequest,
     rejectJoinRequest,

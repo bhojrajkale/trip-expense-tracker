@@ -220,6 +220,7 @@ export default function App() {
                 onAddMember={(member) => store.addMember(store.activeTrip!.id, member)}
                 onAddMembers={(members) => store.addMembers(store.activeTrip!.id, members)}
                 onRemoveMember={(memberId) => store.removeMember(store.activeTrip!.id, memberId)}
+                onRenameMember={(memberId, name) => store.renameMember(store.activeTrip!.id, memberId, name)}
                 onToggleSettlementPaid={(from, to) => store.toggleSettlementPaid(store.activeTrip!.id, from, to)}
                 onApproveRequest={(req) => store.approveJoinRequest(store.activeTrip!.id, req)}
                 onRejectRequest={(reqUid) => store.rejectJoinRequest(store.activeTrip!.id, reqUid)}

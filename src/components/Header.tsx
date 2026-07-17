@@ -143,17 +143,15 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                     Delete
                   </button>
                 </div>
-              ) : (
+              ) : trip.ownerUid === currentUid ? (
                 <div className="flex items-center pr-1">
-                  {trip.ownerUid === currentUid && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleEdit(trip) }}
-                      className="text-[var(--action)] px-2 py-3 text-sm transition-opacity active:opacity-50"
-                      title="Edit trip"
-                    >
-                      ✏️
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleEdit(trip) }}
+                    className="text-[var(--action)] px-2 py-3 text-sm transition-opacity active:opacity-50"
+                    title="Edit trip"
+                  >
+                    ✏️
+                  </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDuplicate(trip) }}
                     className="text-[var(--action)] px-2 py-3 text-xl leading-none transition-opacity active:opacity-50"
@@ -168,18 +166,16 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                   >
                     📦
                   </button>
-                  {trip.ownerUid === currentUid ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}
-                      className="text-[var(--disabled)] hover:text-[var(--red)] px-2 py-3 text-base transition-colors"
-                      title="Delete trip"
-                    >
-                      🗑
-                    </button>
-                  ) : (
-                    <span className="text-[10px] text-[var(--muted)] px-2 py-3">shared</span>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(trip.id) }}
+                    className="text-[var(--disabled)] hover:text-[var(--red)] px-2 py-3 text-base transition-colors"
+                    title="Delete trip"
+                  >
+                    🗑
+                  </button>
                 </div>
+              ) : (
+                <span className="text-[10px] text-[var(--muted)] px-2 py-3">shared</span>
               )}
             </div>
           ))}
@@ -228,7 +224,7 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                         Delete
                       </button>
                     </div>
-                  ) : (
+                  ) : trip.ownerUid === currentUid ? (
                     <div className="flex items-center gap-1 pr-2">
                       <button
                         onClick={() => onArchiveTrip(trip.id)}
@@ -236,16 +232,16 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
                       >
                         Restore
                       </button>
-                      {trip.ownerUid === currentUid && (
-                        <button
-                          onClick={() => setConfirmDelete(trip.id)}
-                          className="text-[var(--disabled)] hover:text-[var(--red)] px-1.5 py-3 text-base transition-colors"
-                          title="Delete trip"
-                        >
-                          🗑
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setConfirmDelete(trip.id)}
+                        className="text-[var(--disabled)] hover:text-[var(--red)] px-1.5 py-3 text-base transition-colors"
+                        title="Delete trip"
+                      >
+                        🗑
+                      </button>
                     </div>
+                  ) : (
+                    <span className="text-[10px] text-[var(--muted)] px-2.5 py-3">shared</span>
                   )}
                 </div>
               ))}

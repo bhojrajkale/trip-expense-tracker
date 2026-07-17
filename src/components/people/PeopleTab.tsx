@@ -98,12 +98,14 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
           Members ({trip.members.length})
         </h2>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowInvite(true)}
-            className="px-3 py-2 rounded-full bg-[var(--action)] text-white text-sm font-medium active:scale-95 transition-transform"
-          >
-            + Invite
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="px-3 py-2 rounded-full bg-[var(--action)] text-white text-sm font-medium active:scale-95 transition-transform"
+            >
+              + Invite
+            </button>
+          )}
           {isContactsSupported() && (
             <button
               onClick={handlePickContacts}
@@ -112,12 +114,14 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
               + Contacts
             </button>
           )}
-          <button
-            onClick={() => setShowManual(!showManual)}
-            className="px-3 py-2 rounded-full bg-[var(--surface)] text-[var(--ink)] text-sm font-medium border border-[var(--hairline)] active:scale-95 transition-transform"
-          >
-            + Manual
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => setShowManual(!showManual)}
+              className="px-3 py-2 rounded-full bg-[var(--surface)] text-[var(--ink)] text-sm font-medium border border-[var(--hairline)] active:scale-95 transition-transform"
+            >
+              + Manual
+            </button>
+          )}
         </div>
       </div>
 

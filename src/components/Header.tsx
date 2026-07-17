@@ -6,6 +6,7 @@ interface Props {
   trips: Trip[]
   onSelectTrip: (id: string) => void
   onNewTrip: () => void
+  canCreateTrip: boolean
   onEditTrip: (trip: Trip) => void
   onDuplicateTrip: (trip: Trip) => void
   onArchiveTrip: (id: string) => void
@@ -17,7 +18,7 @@ interface Props {
   onToggleTheme: () => void
 }
 
-export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onEditTrip, onDuplicateTrip, onArchiveTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut, isDark, onToggleTheme }: Props) {
+export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, canCreateTrip, onEditTrip, onDuplicateTrip, onArchiveTrip, onDeleteTrip, currentUid, userPhotoURL, onSignOut, isDark, onToggleTheme }: Props) {
   const [showPicker, setShowPicker] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -89,12 +90,14 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, onE
           >
             {isDark ? '☀️' : '🌙'}
           </button>
-          <button
-            onClick={onNewTrip}
-            className="text-[var(--action)] text-sm font-medium py-1.5 px-4 rounded-full border border-[var(--action)] active:scale-95 transition-transform"
-          >
-            + New Trip
-          </button>
+          {canCreateTrip && (
+            <button
+              onClick={onNewTrip}
+              className="text-[var(--action)] text-sm font-medium py-1.5 px-4 rounded-full border border-[var(--action)] active:scale-95 transition-transform"
+            >
+              + New Trip
+            </button>
+          )}
           {onSignOut && (
             <button onClick={onSignOut} title="Sign out" className="flex-shrink-0 active:opacity-70">
               {userPhotoURL ? (

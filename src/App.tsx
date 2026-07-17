@@ -116,6 +116,11 @@ export default function App() {
 
   const noTrip = store.trips.length === 0
   const isOwner = store.activeTrip?.ownerUid === user.uid
+  // Mirrors the server rule `allow create: if isAllowedUser()` — only
+  // allowlisted accounts may create trips, so invited guests don't see the
+  // creation entry points (clicking them would silently fail server-side).
+  // Empty list = gate off (permissive), same convention as UnauthorizedScreen.
+  const canCreateTrip = ALLOWED_UIDS.length === 0 || ALLOWED_UIDS.includes(user.uid)
 
   return (
     <div className="flex flex-col bg-[var(--bg)]" style={{ minHeight: '100dvh' }}>
@@ -124,6 +129,7 @@ export default function App() {
         trips={store.trips}
         onSelectTrip={store.setActiveTrip}
         onNewTrip={() => setShowTripModal(true)}
+        canCreateTrip={canCreateTrip}
         onEditTrip={(trip) => setEditingTrip(trip)}
         onDuplicateTrip={(trip) => setDuplicatingTrip(trip)}
         onArchiveTrip={store.toggleArchiveTrip}
@@ -143,26 +149,32 @@ export default function App() {
             <p className="text-[var(--muted)] text-sm mb-6">
               Create your first trip to start tracking expenses with your group.
             </p>
-            <button
-              onClick={() => setShowTripModal(true)}
-              className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
-            >
-              + Create Trip
-            </button>
+            {canCreateTrip && (
+              <button
+                onClick={() => setShowTripModal(true)}
+                className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
+              >
+                + Create Trip
+              </button>
+            )}
           </div>
         ) : !store.activeTrip ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center">
             <span className="text-6xl mb-4">📦</span>
             <h1 className="text-xl font-semibold text-[var(--ink)] mb-2">All trips archived</h1>
             <p className="text-[var(--muted)] text-sm mb-6">
-              Restore a trip from the menu above, or create a new one.
+              {canCreateTrip
+                ? 'Restore a trip from the menu above, or create a new one.'
+                : 'Open the trip menu above to view an archived trip.'}
             </p>
-            <button
-              onClick={() => setShowTripModal(true)}
-              className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
-            >
-              + Create Trip
-            </button>
+            {canCreateTrip && (
+              <button
+                onClick={() => setShowTripModal(true)}
+                className="px-6 py-3 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
+              >
+                + Create Trip
+              </button>
+            )}
           </div>
         ) : (
           <>

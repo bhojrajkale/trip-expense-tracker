@@ -259,9 +259,11 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
         </div>
 
-        {/* Date & Notes */}
+        {/* Date & Notes — min-w-0 lets each column shrink to 50%; without it
+            iOS Safari's native date input keeps its intrinsic width and
+            overflows onto the Notes field. */}
         <div className="flex gap-3">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Date</label>
             <input
               type="date"
@@ -270,7 +272,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Notes</label>
             <input
               className={inputClass}

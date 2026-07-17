@@ -259,7 +259,10 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                       {bal > 0 ? 'gets back' : bal < 0 ? 'owes' : 'settled'}
                     </div>
                   </div>
-                  {!isOwner ? null : isConfirming ? (
+                  {/* Owner can remove any member except themself — leaving
+                      a trip is a separate action (not built yet) and
+                      self-removal would strand the trip with no owner. */}
+                  {!isOwner || member.uid === currentUid ? null : isConfirming ? (
                     <div className="flex gap-1">
                       <button
                         onClick={() => setConfirmRemove(null)}

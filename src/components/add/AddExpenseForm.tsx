@@ -265,9 +265,12 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
             sidestep that entirely and match the rest of the form. */}
         <div>
           <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Date</label>
+          {/* appearance-none + min-w-0 force iOS Safari's native date control
+              to respect the container width (it otherwise keeps its intrinsic
+              width and spills past the screen edge). */}
           <input
             type="date"
-            className={inputClass}
+            className={`${inputClass} appearance-none [-webkit-appearance:none] min-w-0 [&::-webkit-date-and-time-value]:text-left`}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />

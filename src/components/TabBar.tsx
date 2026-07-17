@@ -42,7 +42,7 @@ export default function TabBar({ active, onChange }: Props) {
               <span className="text-[18px] leading-none">{tab.icon}</span>
             )}
             <span
-              className={`font-medium leading-none text-[10px] ${isAdd ? 'text-[var(--action)]' : ''}`}
+              className={`font-medium leading-none text-[11px] ${isAdd ? 'text-[var(--action)]' : ''}`}
             >
               {tab.label}
             </span>

@@ -259,29 +259,28 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           </div>
         </div>
 
-        {/* Date & Notes — min-w-0 lets each column shrink to 50%; without it
-            iOS Safari's native date input keeps its intrinsic width and
-            overflows onto the Notes field. */}
-        <div className="flex gap-3">
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Date</label>
-            <input
-              type="date"
-              className={inputClass}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <label className="block text-xs text-[var(--muted)] mb-1 font-medium">Notes</label>
-            <input
-              className={inputClass}
-              placeholder="Optional"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={200}
-            />
-          </div>
+        {/* Date and Notes are stacked (not side-by-side): iOS Safari's native
+            date input keeps its intrinsic width regardless of the flex column
+            it's in, and overflows onto a neighbouring field. Full-width rows
+            sidestep that entirely and match the rest of the form. */}
+        <div>
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Date</label>
+          <input
+            type="date"
+            className={inputClass}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Notes</label>
+          <input
+            className={inputClass}
+            placeholder="Optional"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={200}
+          />
         </div>
 
         {/* Receipt */}

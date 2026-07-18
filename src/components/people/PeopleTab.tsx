@@ -4,6 +4,7 @@ import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements, computeRawDebts } from '../../utils/settlement'
 import { shareOrCopy } from '../../utils/share'
+import { canRemoveMember } from '../../utils/memberPermissions'
 import InviteModal from './InviteModal'
 
 interface Props {
@@ -321,11 +322,11 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                         member except themself (self-removal would strand the
                         trip with no owner). */}
                     {isOwner && (
-                      // Re-check uid !== currentUid here too, not just at the
+                      // Re-check canRemoveMember() here too, not just at the
                       // × button that sets confirmRemove — self-removal is
                       // serious enough (could lock you out of your own trip)
                       // that it shouldn't depend on a single guard holding.
-                      isConfirming && member.uid !== currentUid ? (
+                      isConfirming && canRemoveMember(member, isOwner, currentUid) ? (
                         <div className="flex gap-1">
                           <button
                             onClick={() => setConfirmRemove(null)}
@@ -352,7 +353,7 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                           >
                             ✏️
                           </button>
-                          {member.uid !== currentUid && (
+                          {canRemoveMember(member, isOwner, currentUid) && (
                             <button
                               onClick={() => setConfirmRemove(member.id)}
                               className="text-[var(--disabled)] text-lg px-1 active:opacity-50"

@@ -17,7 +17,7 @@ import {
 import type { Trip, Expense, Activity, TripPreview, JoinRequest } from '../types'
 
 // Firestore rejects undefined values — strip them before writing
-function clean<T extends object>(obj: T): T {
+export function clean<T extends object>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined)
   ) as T
@@ -39,7 +39,7 @@ export function memberUidsFor(trip: Pick<Trip, 'ownerUid' | 'members'>): string[
   return [...uids]
 }
 
-function cleanTrip(trip: Trip): Trip {
+export function cleanTrip(trip: Trip): Trip {
   return clean({
     ...trip,
     members: trip.members.map((m) => clean(m)),
@@ -49,7 +49,7 @@ function cleanTrip(trip: Trip): Trip {
 
 // Safe projection for the pre-join preview — deliberately omits email,
 // photoURL, phone, and budget. See TripPreview in types.ts.
-function buildPreview(trip: Trip): TripPreview {
+export function buildPreview(trip: Trip): TripPreview {
   return {
     id: trip.id,
     name: trip.name,

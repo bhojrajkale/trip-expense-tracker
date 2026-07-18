@@ -22,6 +22,9 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, can
   const [showPicker, setShowPicker] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  // Same fallback as PeopleTab's member avatars: a stale/broken Google photo
+  // URL must not render the browser's broken-image glyph in its place.
+  const [photoBroken, setPhotoBroken] = useState(false)
 
   const currentTrips = trips.filter((t) => !t.archived)
   const archivedTrips = trips.filter((t) => t.archived)
@@ -100,8 +103,13 @@ export default function Header({ activeTrip, trips, onSelectTrip, onNewTrip, can
           )}
           {onSignOut && (
             <button onClick={onSignOut} title="Sign out" className="flex-shrink-0 active:opacity-70">
-              {userPhotoURL ? (
-                <img src={userPhotoURL} alt="avatar" className="w-7 h-7 rounded-full" />
+              {userPhotoURL && !photoBroken ? (
+                <img
+                  src={userPhotoURL}
+                  alt="avatar"
+                  onError={() => setPhotoBroken(true)}
+                  className="w-7 h-7 rounded-full"
+                />
               ) : (
                 <div className="w-7 h-7 rounded-full bg-[var(--action)] flex items-center justify-center text-white text-xs font-semibold">
                   G

@@ -28,6 +28,12 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  // Google photo URLs occasionally 404/expire. Without this, a broken <img>
+  // renders the browser's native broken-image glyph (and sometimes overflow
+  // alt text) inside the 40px circle instead of falling back to initials.
+  const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set())
+  const markBroken = (key: string) =>
+    setBrokenPhotos((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
   const [simplified, setSimplified] = useState(true)
   const [showInvite, setShowInvite] = useState(false)
   const [toast, setToast] = useState('')
@@ -183,8 +189,13 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                   key={req.uid}
                   className="flex items-center gap-3 p-3 rounded-[18px] border border-[var(--action-border)] bg-[var(--action-tint)]"
                 >
-                  {req.photoURL ? (
-                    <img src={req.photoURL} alt={req.name} className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
+                  {req.photoURL && !brokenPhotos.has(`req:${req.uid}`) ? (
+                    <img
+                      src={req.photoURL}
+                      alt={req.name}
+                      onError={() => markBroken(`req:${req.uid}`)}
+                      className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+                    />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-[var(--action)] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
                       {initials(req.name)}
@@ -232,10 +243,11 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
             const color = AVATAR_COLORS[idx % AVATAR_COLORS.length]
             const isConfirming = confirmRemove === member.id
             const isEditing = editingId === member.id
-            const avatar = member.photoURL ? (
+            const avatar = member.photoURL && !brokenPhotos.has(member.id) ? (
               <img
                 src={member.photoURL}
                 alt={member.name}
+                onError={() => markBroken(member.id)}
                 className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
               />
             ) : (

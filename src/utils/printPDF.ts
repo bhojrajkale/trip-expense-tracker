@@ -7,7 +7,7 @@ import { getCategoryConfig } from '../components/CategoryConfig'
 // bypassing React's auto-escaping — every interpolated user string (names,
 // notes, custom categories, destination) MUST pass through esc() or it becomes
 // a stored-XSS vector.
-function esc(value: string): string {
+export function esc(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -16,7 +16,11 @@ function esc(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
-export function printTripSummary(trip: Trip, expenses: Expense[]) {
+// Returns false (instead of failing silently) when the popup couldn't be
+// opened — iOS Safari, especially in installed-PWA/standalone mode, blocks
+// window.open() with no visible "popup blocked" banner at all, so without
+// this the button just does nothing and the user has no way to tell why.
+export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
   const memberName = (id: string) => esc(trip.members.find((m) => m.id === id)?.name ?? 'Unknown')
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
@@ -142,14 +146,20 @@ export function printTripSummary(trip: Trip, expenses: Expense[]) {
 </body>
 </html>`
 
-  const win = window.open('', '_blank', 'width=800,height=600')
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.focus()
-  // slight delay lets the browser finish rendering before print dialog opens
-  setTimeout(() => {
-    win.print()
-    win.close()
-  }, 250)
+  try {
+    const win = window.open('', '_blank', 'width=800,height=600')
+    if (!win) return false
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    // slight delay lets the browser finish rendering before print dialog opens
+    setTimeout(() => {
+      win.print()
+      win.close()
+    }, 250)
+    return true
+  } catch (err) {
+    console.error('printTripSummary failed', err)
+    return false
+  }
 }

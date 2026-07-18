@@ -12,6 +12,15 @@ interface Props {
 
 export default function Dashboard({ trip, expenses }: Props) {
   const [showShare, setShowShare] = useState(false)
+  const [pdfError, setPdfError] = useState('')
+
+  function handlePdf() {
+    setPdfError('')
+    const opened = printTripSummary(trip, expenses)
+    if (!opened) {
+      setPdfError("Couldn't open the PDF preview — your browser may be blocking pop-ups for this site.")
+    }
+  }
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
@@ -40,7 +49,7 @@ export default function Dashboard({ trip, expenses }: Props) {
     <div className="p-4 pb-32 space-y-4">
       <div className="flex items-center justify-end gap-2">
         <button
-          onClick={() => printTripSummary(trip, expenses)}
+          onClick={handlePdf}
           className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] bg-[var(--surface)] border border-[var(--hairline)] px-3 py-2 rounded-full active:scale-95 transition-transform"
         >
           📄 PDF
@@ -52,6 +61,11 @@ export default function Dashboard({ trip, expenses }: Props) {
           📤 Share
         </button>
       </div>
+
+      {pdfError && (
+        <p className="text-[var(--orange)] text-sm bg-[var(--orange-tint)] rounded-[11px] p-3">{pdfError}</p>
+      )}
+
       <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
 
       {/* Per-person spend */}

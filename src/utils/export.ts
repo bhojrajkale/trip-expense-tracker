@@ -2,7 +2,7 @@ import type { Trip, Expense } from '../types'
 import { getCategoryConfig } from '../components/CategoryConfig'
 import { computeBalances, minimizeSettlements } from './settlement'
 
-function escapeCell(value: string): string {
+export function escapeCell(value: string): string {
   // Neutralize CSV formula injection: a leading =, +, -, @, tab, or CR makes
   // Excel/Sheets treat the cell as a formula. Prefix with ' so user-supplied
   // names/notes/categories can never execute on open.

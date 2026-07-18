@@ -20,7 +20,7 @@ import {
 // from useStore so the four branches (claim / conflicting claim /
 // already-a-member / new) can be read and tested without the surrounding
 // dispatch/save/log plumbing.
-function mergeApprovedMember(
+export function mergeApprovedMember(
   members: Member[],
   req: JoinRequest
 ): { members: Member[]; joinedName: string; changed: boolean; conflict: boolean } {
@@ -65,13 +65,13 @@ function mergeApprovedMember(
   }
 }
 
-interface State {
+export interface State {
   trips: Trip[]
   expenses: Expense[] // active trip's expenses only (realtime subscription)
   activeTripId: string | null
 }
 
-type Action =
+export type Action =
   | { type: 'SET_TRIPS'; trips: Trip[] }
   | { type: 'SET_EXPENSES'; expenses: Expense[] }
   | { type: 'SET_ACTIVE_TRIP'; id: string | null }
@@ -84,7 +84,7 @@ type Action =
   | { type: 'ADD_MEMBER'; tripId: string; member: Member }
   | { type: 'REMOVE_MEMBER'; tripId: string; memberId: string }
 
-function reducer(state: State, action: Action): State {
+export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'SET_TRIPS':
       return { ...state, trips: action.trips }

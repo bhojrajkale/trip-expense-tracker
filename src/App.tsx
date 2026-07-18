@@ -12,6 +12,7 @@ import PeopleTab from './components/people/PeopleTab'
 import ActivityFeed from './components/activity/ActivityFeed'
 import LoginScreen from './components/auth/LoginScreen'
 import { getInitialTheme, applyTheme, type Theme } from './utils/theme'
+import { mergeTripEdit } from './utils/tripEdit'
 import UnauthorizedScreen from './components/auth/UnauthorizedScreen'
 import JoinTripScreen from './components/join/JoinTripScreen'
 
@@ -273,10 +274,7 @@ export default function App() {
         <TripModal
           editTrip={editingTrip}
           onSave={(updated) => {
-            // Spread the existing trip first: the form only owns a few fields,
-            // and saveTrip is a full-document overwrite — anything omitted
-            // here (archived, paidSettlements, endDate, …) would be deleted.
-            store.updateTrip({ ...editingTrip, ...updated })
+            store.updateTrip(mergeTripEdit(editingTrip, updated))
             setEditingTrip(undefined)
           }}
           onClose={() => setEditingTrip(undefined)}

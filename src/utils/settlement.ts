@@ -1,4 +1,30 @@
-import type { Expense, Member, Settlement } from '../types'
+import type { Expense, Member, PaidSettlement, Settlement } from '../types'
+
+// How many expenses a member is tied to (as payer or in the split) — used to
+// warn before removing them. Removing a member never touches expenses; their
+// id stays on old records but no longer resolves to a name anywhere, so this
+// lets the UI tell the owner what they'd be making anonymous before they do it.
+export function countMemberExpenses(expenses: Expense[], memberId: string): number {
+  return expenses.filter((e) => e.paidBy === memberId || e.splitBetween.includes(memberId)).length
+}
+
+// A member's raw balance (from computeBalances) is pure expense math — it has
+// no idea a settlement was manually marked "✓ Paid" (trip.paidSettlements is
+// a separate acknowledgment layer, not part of the money math). This tells
+// you whether this member actually still has something outstanding, so UI
+// text mentioning a balance doesn't contradict a settlement already shown
+// crossed-out elsewhere on the same screen.
+export function memberHasUnpaidBalance(
+  settlements: Settlement[],
+  paidSettlements: PaidSettlement[],
+  memberId: string
+): boolean {
+  return settlements.some(
+    (s) =>
+      (s.from === memberId || s.to === memberId) &&
+      !paidSettlements.some((p) => p.from === s.from && p.to === s.to)
+  )
+}
 
 export function computeBalances(
   expenses: Expense[],

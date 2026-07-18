@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeBalances, computeRawDebts, minimizeSettlements } from './settlement'
+import { computeBalances, computeRawDebts, minimizeSettlements, countMemberExpenses, memberHasUnpaidBalance } from './settlement'
 import type { Expense, Member } from '../types'
 
 const members: Member[] = [
@@ -157,5 +157,74 @@ describe('computeRawDebts', () => {
       expense({ id: 'e2', amount: 100, paidBy: 'a', splitBetween: ['b'] }),
     ])
     expect(debts).toEqual([])
+  })
+})
+
+describe('countMemberExpenses', () => {
+  it('counts an expense the member paid for', () => {
+    const count = countMemberExpenses(
+      [expense({ paidBy: 'a', splitBetween: ['b'] })],
+      'a'
+    )
+    expect(count).toBe(1)
+  })
+
+  it('counts an expense the member is only part of the split for', () => {
+    const count = countMemberExpenses(
+      [expense({ paidBy: 'b', splitBetween: ['a', 'b'] })],
+      'a'
+    )
+    expect(count).toBe(1)
+  })
+
+  it('counts an expense only once even if the member is both payer and in the split', () => {
+    const count = countMemberExpenses(
+      [expense({ paidBy: 'a', splitBetween: ['a', 'b'] })],
+      'a'
+    )
+    expect(count).toBe(1)
+  })
+
+  it('does not count an expense the member has nothing to do with', () => {
+    const count = countMemberExpenses(
+      [expense({ paidBy: 'b', splitBetween: ['b', 'c'] })],
+      'a'
+    )
+    expect(count).toBe(0)
+  })
+
+  it('is zero for someone with no expenses at all', () => {
+    expect(countMemberExpenses([], 'a')).toBe(0)
+  })
+})
+
+describe('memberHasUnpaidBalance', () => {
+  const settlements = [{ from: 'a', to: 'b', amount: 720 }]
+
+  it('is true when the member is part of a settlement nobody has marked paid', () => {
+    expect(memberHasUnpaidBalance(settlements, [], 'a')).toBe(true)
+    expect(memberHasUnpaidBalance(settlements, [], 'b')).toBe(true)
+  })
+
+  // This is the exact bug that was found: after marking "a pays b" as paid,
+  // the removal warning still said "a owes ₹720" — contradicting the
+  // crossed-out, "✓ Paid" settlement shown right above it.
+  it('is false once that settlement has been marked paid', () => {
+    const paid = [{ from: 'a', to: 'b', paidAt: '2026-01-01' }]
+    expect(memberHasUnpaidBalance(settlements, paid, 'a')).toBe(false)
+    expect(memberHasUnpaidBalance(settlements, paid, 'b')).toBe(false)
+  })
+
+  it('is false for someone not involved in any settlement at all', () => {
+    expect(memberHasUnpaidBalance(settlements, [], 'c')).toBe(false)
+  })
+
+  it('marking one settlement paid does not hide a DIFFERENT unpaid one for the same member', () => {
+    const twoSettlements = [
+      { from: 'a', to: 'b', amount: 720 },
+      { from: 'a', to: 'c', amount: 100 },
+    ]
+    const onlyFirstPaid = [{ from: 'a', to: 'b', paidAt: '2026-01-01' }]
+    expect(memberHasUnpaidBalance(twoSettlements, onlyFirstPaid, 'a')).toBe(true)
   })
 })

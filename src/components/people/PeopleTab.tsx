@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Member, Trip, Expense, JoinRequest } from '../../types'
 import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
-import { computeBalances, minimizeSettlements, computeRawDebts } from '../../utils/settlement'
+import { computeBalances, minimizeSettlements, computeRawDebts, countMemberExpenses, memberHasUnpaidBalance } from '../../utils/settlement'
 import { shareOrCopy } from '../../utils/share'
 import { canRemoveMember } from '../../utils/memberPermissions'
 import InviteModal from './InviteModal'
@@ -244,6 +244,8 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
             const color = AVATAR_COLORS[idx % AVATAR_COLORS.length]
             const isConfirming = confirmRemove === member.id
             const isEditing = editingId === member.id
+            const expenseCount = countMemberExpenses(expenses, member.id)
+            const hasUnpaidBalance = memberHasUnpaidBalance(settlements, paidSettlements, member.id)
             const avatar = member.photoURL && !brokenPhotos.has(member.id) ? (
               <img
                 src={member.photoURL}
@@ -326,7 +328,15 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                       // × button that sets confirmRemove — self-removal is
                       // serious enough (could lock you out of your own trip)
                       // that it shouldn't depend on a single guard holding.
-                      isConfirming && canRemoveMember(member, isOwner, currentUid) ? (
+                      //
+                      // With no expenses at stake, a quick inline No/Remove
+                      // is enough. Once expenses are involved, that quick
+                      // confirm moves to the warning banner below instead —
+                      // removing never touches expenses, it just makes this
+                      // person's name resolve to "Unknown" everywhere those
+                      // old records are shown, so that's worth explaining
+                      // before it happens, not just confirming a click.
+                      isConfirming && canRemoveMember(member, isOwner, currentUid) && expenseCount === 0 ? (
                         <div className="flex gap-1">
                           <button
                             onClick={() => setConfirmRemove(null)}
@@ -344,6 +354,11 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                             Remove
                           </button>
                         </div>
+                      ) : isConfirming ? (
+                        // Confirming, but with expenses at stake — the real
+                        // Cancel/Remove controls are in the warning banner
+                        // below instead, so there's nothing to show here.
+                        null
                       ) : (
                         <div className="flex items-center gap-0.5 flex-shrink-0">
                           <button
@@ -364,6 +379,35 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                         </div>
                       )
                     )}
+                  </div>
+                )}
+
+                {isConfirming && canRemoveMember(member, isOwner, currentUid) && expenseCount > 0 && (
+                  <div className="px-3 pb-3 pt-1 border-t border-[var(--divider)] bg-[var(--orange-tint)]">
+                    <p className="text-xs text-[var(--ink)] mb-2">
+                      <b>{member.name}</b> {expenseCount === 1 ? 'has 1 expense' : `has ${expenseCount} expenses`}
+                      {bal !== 0 && hasUnpaidBalance && (
+                        <> and {bal > 0 ? 'is owed ' : 'owes '}<b>{formatINR(Math.abs(Math.round(bal)))}</b></>
+                      )}
+                      . Removing them keeps those expenses, but their name will show as <b>"Unknown"</b> wherever they're listed.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setConfirmRemove(null)}
+                        className="text-xs font-medium text-[var(--muted)] px-3 py-1.5 rounded-full border border-[var(--hairline)] active:scale-95 transition-transform"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          onRemoveMember(member.id)
+                          setConfirmRemove(null)
+                        }}
+                        className="text-xs font-medium text-white px-3 py-1.5 rounded-full bg-[var(--red)] active:scale-95 transition-transform"
+                      >
+                        Remove anyway
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

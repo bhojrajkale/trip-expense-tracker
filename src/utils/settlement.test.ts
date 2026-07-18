@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeBalances, computeRawDebts, minimizeSettlements, countMemberExpenses, memberHasUnpaidBalance } from './settlement'
+import { computeBalances, computeRawDebts, minimizeSettlements, countMemberExpenses, memberHasUnpaidBalance, splitByPercentage } from './settlement'
 import type { Expense, Member } from '../types'
 
 const members: Member[] = [
@@ -226,5 +226,50 @@ describe('memberHasUnpaidBalance', () => {
     ]
     const onlyFirstPaid = [{ from: 'a', to: 'b', paidAt: '2026-01-01' }]
     expect(memberHasUnpaidBalance(twoSettlements, onlyFirstPaid, 'a')).toBe(true)
+  })
+})
+
+describe('splitByPercentage', () => {
+  it('splits a clean 60/40 with no rounding needed', () => {
+    const result = splitByPercentage(100, ['a', 'b'], { a: 60, b: 40 })
+    expect(result).toEqual([
+      { memberId: 'a', amount: 60 },
+      { memberId: 'b', amount: 40 },
+    ])
+  })
+
+  it('always sums to exactly the total, even when percentages do not divide evenly', () => {
+    // 33.33/33.33/33.34 of ₹100 rounds to 33/33/33 = 99, one rupee short —
+    // the leftover rupee must land on the last person, not get silently lost
+    const result = splitByPercentage(100, ['a', 'b', 'c'], { a: 33.33, b: 33.33, c: 33.34 })
+    const total = result.reduce((s, e) => s + e.amount, 0)
+    expect(total).toBe(100)
+    expect(result[0].amount).toBe(33)
+    expect(result[1].amount).toBe(33)
+    expect(result[2].amount).toBe(34) // absorbs the rounding remainder
+  })
+
+  it('gives someone with 0% nothing', () => {
+    const result = splitByPercentage(100, ['a', 'b'], { a: 100, b: 0 })
+    expect(result).toEqual([
+      { memberId: 'a', amount: 100 },
+      { memberId: 'b', amount: 0 },
+    ])
+  })
+
+  it('treats a missing percentage as 0 rather than crashing', () => {
+    const result = splitByPercentage(100, ['a', 'b'], { a: 60 })
+    expect(result[1]).toEqual({ memberId: 'b', amount: 40 }) // absorbs remainder
+  })
+
+  it('returns nothing for an empty split', () => {
+    expect(splitByPercentage(100, [], {})).toEqual([])
+  })
+
+  it('handles a three-way even split (₹100 / 3) without losing a rupee', () => {
+    const result = splitByPercentage(100, ['a', 'b', 'c'], {
+      a: 33.333, b: 33.333, c: 33.334,
+    })
+    expect(result.reduce((s, e) => s + e.amount, 0)).toBe(100)
   })
 })

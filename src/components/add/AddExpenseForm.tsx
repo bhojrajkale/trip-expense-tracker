@@ -3,6 +3,7 @@ import type { Expense, Trip, SplitAmount } from '../../types'
 import { CATEGORIES } from '../CategoryConfig'
 import { todayISO, formatINR } from '../../utils/format'
 import { compressToDataUrl } from '../../utils/imageCompress'
+import { splitByPercentage } from '../../utils/settlement'
 
 interface Props {
   trip: Trip
@@ -12,7 +13,7 @@ interface Props {
   onCancel: () => void
 }
 
-type SplitMode = 'equal' | 'custom'
+type SplitMode = 'equal' | 'custom' | 'percentage'
 
 export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: Props) {
   const isEdit = !!editExpense
@@ -36,6 +37,10 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
     }
     return {}
   })
+  // Percentages are never persisted (splitAmounts always stores the final
+  // rupee amounts) — so an edited expense always reopens showing amounts,
+  // never percentages, even if that's how it was originally entered.
+  const [customPercents, setCustomPercents] = useState<Record<string, string>>({})
   const [date, setDate] = useState(editExpense?.date ?? todayISO())
   const [notes, setNotes] = useState(editExpense?.notes ?? '')
   const [error, setError] = useState('')
@@ -48,6 +53,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
   const amountNum = parseFloat(amount) || 0
   const perPerson = splitBetween.length > 0 ? amountNum / splitBetween.length : 0
+  const percentTotal = splitBetween.reduce((s, id) => s + (parseFloat(customPercents[id] ?? '0') || 0), 0)
 
   function toggleMember(id: string) {
     setSplitBetween((prev) =>
@@ -95,6 +101,15 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         return setError(`Custom split total (${formatINR(total)}) must equal ${formatINR(amt)}`)
       }
       splitAmounts = entries
+    } else if (splitMode === 'percentage') {
+      const percents = Object.fromEntries(
+        splitBetween.map((id) => [id, parseFloat(customPercents[id] ?? '0') || 0])
+      )
+      const totalPct = Object.values(percents).reduce((s, p) => s + p, 0)
+      if (Math.abs(totalPct - 100) > 0.5) {
+        return setError(`Percentages must add up to 100% (currently ${totalPct.toFixed(0)}%)`)
+      }
+      splitAmounts = splitByPercentage(amt, splitBetween, percents)
     }
 
     onSave({
@@ -201,7 +216,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs text-[var(--muted)] font-medium">Split between</label>
             <div className="flex bg-[var(--bg)] rounded-lg overflow-hidden border border-[var(--hairline)]">
-              {(['equal', 'custom'] as SplitMode[]).map((mode) => (
+              {(['equal', 'custom', 'percentage'] as SplitMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -210,11 +225,17 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
                     splitMode === mode ? 'bg-[var(--action)] text-white rounded-lg' : 'text-[var(--muted)]'
                   }`}
                 >
-                  {mode === 'equal' ? 'Equal' : 'Custom'}
+                  {mode === 'equal' ? 'Equal' : mode === 'custom' ? 'Custom' : '%'}
                 </button>
               ))}
             </div>
           </div>
+
+          {splitMode === 'percentage' && (
+            <p className={`text-[11px] mb-2 text-right ${Math.abs(percentTotal - 100) > 0.5 ? 'text-[var(--red)]' : 'text-[var(--green)]'}`}>
+              Total: {percentTotal.toFixed(0)}% {Math.abs(percentTotal - 100) <= 0.5 ? '✓' : '(needs to be 100%)'}
+            </p>
+          )}
 
           <div className="space-y-2">
             {trip.members.map((m) => {
@@ -251,6 +272,25 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
                           setCustomAmounts((prev) => ({ ...prev, [m.id]: e.target.value }))
                         }
                       />
+                    </div>
+                  )}
+                  {isIn && splitMode === 'percentage' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-[var(--muted)] w-14 text-right">
+                        {formatINR((amountNum * (parseFloat(customPercents[m.id] ?? '0') || 0)) / 100)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          className="w-14 bg-[var(--surface)] border border-[var(--hairline)] rounded-lg px-2 py-1 text-sm text-[var(--ink)] text-right focus:outline-none focus:border-[var(--action)]"
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={customPercents[m.id] ?? ''}
+                          onChange={(e) =>
+                            setCustomPercents((prev) => ({ ...prev, [m.id]: e.target.value }))
+                          }
+                        />
+                        <span className="text-[var(--muted)] text-xs">%</span>
+                      </div>
                     </div>
                   )}
                 </div>

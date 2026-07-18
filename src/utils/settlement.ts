@@ -1,4 +1,4 @@
-import type { Expense, Member, PaidSettlement, Settlement } from '../types'
+import type { Expense, Member, PaidSettlement, Settlement, SplitAmount } from '../types'
 
 // How many expenses a member is tied to (as payer or in the split) — used to
 // warn before removing them. Removing a member never touches expenses; their
@@ -6,6 +6,28 @@ import type { Expense, Member, PaidSettlement, Settlement } from '../types'
 // lets the UI tell the owner what they'd be making anonymous before they do it.
 export function countMemberExpenses(expenses: Expense[], memberId: string): number {
   return expenses.filter((e) => e.paidBy === memberId || e.splitBetween.includes(memberId)).length
+}
+
+// Converts a percentage-per-member split into the absolute per-rupee amounts
+// the app actually stores (SplitAmount — percentages themselves are never
+// persisted, just a convenience input mode). Each member's share is rounded
+// to the nearest rupee, and whatever rounding remainder is left over is
+// folded into the LAST member in memberIds order — this guarantees the
+// split always sums to exactly the expense total, never off by a rupee,
+// rather than each person's amount silently drifting from their percentage.
+export function splitByPercentage(
+  amount: number,
+  memberIds: string[],
+  percents: Record<string, number>
+): SplitAmount[] {
+  if (memberIds.length === 0) return []
+  const entries: SplitAmount[] = memberIds.map((memberId) => ({
+    memberId,
+    amount: Math.round((amount * (percents[memberId] ?? 0)) / 100),
+  }))
+  const allocated = entries.reduce((s, e) => s + e.amount, 0)
+  entries[entries.length - 1].amount += Math.round(amount) - allocated
+  return entries
 }
 
 // A member's raw balance (from computeBalances) is pure expense math — it has

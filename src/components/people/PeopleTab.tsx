@@ -321,7 +321,11 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
                         member except themself (self-removal would strand the
                         trip with no owner). */}
                     {isOwner && (
-                      isConfirming ? (
+                      // Re-check uid !== currentUid here too, not just at the
+                      // × button that sets confirmRemove — self-removal is
+                      // serious enough (could lock you out of your own trip)
+                      // that it shouldn't depend on a single guard holding.
+                      isConfirming && member.uid !== currentUid ? (
                         <div className="flex gap-1">
                           <button
                             onClick={() => setConfirmRemove(null)}

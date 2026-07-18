@@ -21,9 +21,15 @@ export function splitByPercentage(
   percents: Record<string, number>
 ): SplitAmount[] {
   if (memberIds.length === 0) return []
+  // Defensive clamp: a percentage outside [0, 100] (e.g. a caller passing
+  // through an un-validated -20/120 pair that still sums to 100) would
+  // otherwise produce a negative SplitAmount — computeBalances trusts these
+  // as ground truth, so a negative share becomes a phantom credit. The form
+  // also validates this before calling in, but this function shouldn't rely
+  // on that being true forever.
   const entries: SplitAmount[] = memberIds.map((memberId) => ({
     memberId,
-    amount: Math.round((amount * (percents[memberId] ?? 0)) / 100),
+    amount: Math.round((amount * Math.min(100, Math.max(0, percents[memberId] ?? 0))) / 100),
   }))
   const allocated = entries.reduce((s, e) => s + e.amount, 0)
   entries[entries.length - 1].amount += Math.round(amount) - allocated

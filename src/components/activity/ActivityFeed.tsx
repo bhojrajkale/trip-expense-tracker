@@ -99,6 +99,10 @@ function ActivityRow({ activity: a, currentUid }: { activity: Activity; currentU
       icon = '🎉'
       text = <><b>{actor}</b> joined the trip</>
       break
+    case 'member_renamed':
+      icon = '✏️'
+      text = <><b>{actor}</b> renamed <b>{a.fromName}</b> to <b>{a.toName}</b></>
+      break
     case 'settlement_paid':
       icon = '✅'
       text = <><b>{actor}</b> marked <b>{a.fromName} → {a.toName}</b> as paid</>

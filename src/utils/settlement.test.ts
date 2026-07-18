@@ -272,4 +272,21 @@ describe('splitByPercentage', () => {
     })
     expect(result.reduce((s, e) => s + e.amount, 0)).toBe(100)
   })
+
+  // The form validates each percentage is within [0, 100] before calling in,
+  // but this function must not trust that forever — a caller passing e.g.
+  // {a: -20, b: 120} (still sums to 100) must never produce a negative
+  // share, since computeBalances trusts SplitAmount as ground truth and a
+  // negative share becomes a phantom credit.
+  it('clamps a negative percentage to 0 instead of producing a negative amount', () => {
+    const result = splitByPercentage(100, ['a', 'b'], { a: -20, b: 120 })
+    expect(result.every((e) => e.amount >= 0)).toBe(true)
+    expect(result.find((e) => e.memberId === 'a')?.amount).toBe(0)
+  })
+
+  it('clamps a percentage over 100 down to 100', () => {
+    const result = splitByPercentage(100, ['a', 'b'], { a: 150, b: -50 })
+    expect(result.find((e) => e.memberId === 'a')?.amount).toBe(100)
+    expect(result.find((e) => e.memberId === 'b')?.amount).toBe(0)
+  })
 })

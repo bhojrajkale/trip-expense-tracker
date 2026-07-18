@@ -70,6 +70,7 @@ export type ActivityType =
   | 'member_added'
   | 'member_removed'
   | 'member_joined'
+  | 'member_renamed'
   | 'settlement_paid'
   | 'settlement_unpaid'
   | 'trip_updated'
@@ -86,8 +87,8 @@ export interface Activity {
   category?: Category
   customCategory?: string
   memberName?: string // member_added / member_removed / member_joined
-  fromName?: string   // settlement pair
-  toName?: string
+  fromName?: string   // settlement pair, or old name for member_renamed
+  toName?: string      // settlement pair, or new name for member_renamed
 }
 
 // Safe subset of Trip exposed pre-join (no email/photoURL/phone/budget) —

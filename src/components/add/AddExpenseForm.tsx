@@ -105,6 +105,14 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
       const percents = Object.fromEntries(
         splitBetween.map((id) => [id, parseFloat(customPercents[id] ?? '0') || 0])
       )
+      // Bound each share, not just the sum — {a: -20, b: 120} also sums to
+      // 100 but a negative percentage produces a negative SplitAmount, which
+      // computeBalances trusts as ground truth and turns into a phantom
+      // credit. A typo (extra digit) is enough to trigger this, so this is
+      // a correctness guard, not just anti-abuse.
+      if (Object.values(percents).some((p) => p < 0 || p > 100)) {
+        return setError('Each percentage must be between 0 and 100')
+      }
       const totalPct = Object.values(percents).reduce((s, p) => s + p, 0)
       if (Math.abs(totalPct - 100) > 0.5) {
         return setError(`Percentages must add up to 100% (currently ${totalPct.toFixed(0)}%)`)

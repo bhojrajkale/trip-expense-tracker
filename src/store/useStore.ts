@@ -417,7 +417,8 @@ export function useStore(uid: string | null) {
     }
     dispatch({ type: 'UPDATE_TRIP', trip: updated })
     saveTrip(updated).catch(console.error)
-  }, [])
+    log(tripId, 'member_renamed', { fromName: before, toName: trimmed })
+  }, [log])
 
   const removeMember = useCallback((tripId: string, memberId: string) => {
     const removedName = stateRef.current.trips

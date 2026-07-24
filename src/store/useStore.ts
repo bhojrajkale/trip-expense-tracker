@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useRef, useState } from 'react'
+import { useReducer, useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import type { Trip, Expense, Member, Activity, ActivityType, JoinRequest } from '../types'
 import { loadActiveTripId, saveActiveTripId } from '../utils/storage'
 import {
@@ -259,8 +259,14 @@ export function useStore(uid: string | null) {
     })
   }, [uid, state.activeTripId, activeOwnerUid])
 
-  const activeTrip = state.trips.find((t) => t.id === state.activeTripId) ?? null
-  const activeExpenses = state.expenses.filter((e) => e.tripId === state.activeTripId)
+  const activeTrip = useMemo(
+    () => state.trips.find((t) => t.id === state.activeTripId) ?? null,
+    [state.trips, state.activeTripId]
+  )
+  const activeExpenses = useMemo(
+    () => state.expenses.filter((e) => e.tripId === state.activeTripId),
+    [state.expenses, state.activeTripId]
+  )
 
   const setActiveTrip = useCallback(
     (id: string | null) => dispatch({ type: 'SET_ACTIVE_TRIP', id }),

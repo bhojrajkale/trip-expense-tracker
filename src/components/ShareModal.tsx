@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Trip, Expense } from '../types'
 import { formatINR } from '../utils/format'
 import { computeBalances, minimizeSettlements } from '../utils/settlement'
@@ -15,36 +15,38 @@ export default function ShareModal({ trip, expenses, onClose }: Props) {
   const [feedback, setFeedback] = useState<'shared' | 'copied' | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
   const remaining = trip.budget - totalSpent
   const isOver = remaining < 0
 
   const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
 
-  const catTotals: Record<string, { emoji: string; label: string; amount: number }> = {}
-  for (const exp of expenses) {
-    const cfg = getCategoryConfig(exp.category)
-    const key = exp.category === 'custom' ? (exp.customCategory ?? 'Other') : exp.category
-    const label = exp.category === 'custom' ? (exp.customCategory ?? 'Other') : cfg.label
-    if (!catTotals[key]) catTotals[key] = { emoji: cfg.emoji, label, amount: 0 }
-    catTotals[key].amount += exp.amount
-  }
+  const sortedCats = useMemo(() => {
+    const catTotals: Record<string, { emoji: string; label: string; amount: number }> = {}
+    for (const exp of expenses) {
+      const cfg = getCategoryConfig(exp.category)
+      const key = exp.category === 'custom' ? (exp.customCategory ?? 'Other') : exp.category
+      const label = exp.category === 'custom' ? (exp.customCategory ?? 'Other') : cfg.label
+      if (!catTotals[key]) catTotals[key] = { emoji: cfg.emoji, label, amount: 0 }
+      catTotals[key].amount += exp.amount
+    }
 
-  const standardOrder = CATEGORIES.map((c) => c.id)
-  const sortedCats = Object.entries(catTotals)
-    .filter(([, v]) => v.amount > 0)
-    .sort(([a], [b]) => {
-      const ai = standardOrder.indexOf(a as never)
-      const bi = standardOrder.indexOf(b as never)
-      if (ai === -1 && bi === -1) return catTotals[b].amount - catTotals[a].amount
-      if (ai === -1) return 1
-      if (bi === -1) return -1
-      return catTotals[b].amount - catTotals[a].amount
-    })
+    const standardOrder = CATEGORIES.map((c) => c.id)
+    return Object.entries(catTotals)
+      .filter(([, v]) => v.amount > 0)
+      .sort(([a], [b]) => {
+        const ai = standardOrder.indexOf(a as never)
+        const bi = standardOrder.indexOf(b as never)
+        if (ai === -1 && bi === -1) return catTotals[b].amount - catTotals[a].amount
+        if (ai === -1) return 1
+        if (bi === -1) return -1
+        return catTotals[b].amount - catTotals[a].amount
+      })
+  }, [expenses])
 
-  const balances = computeBalances(expenses, trip.members)
-  const settlements = minimizeSettlements(balances)
+  const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
+  const settlements = useMemo(() => minimizeSettlements(balances), [balances])
 
   async function handleShare() {
     setLoading(true)

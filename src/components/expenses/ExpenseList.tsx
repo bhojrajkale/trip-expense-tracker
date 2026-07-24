@@ -3,6 +3,7 @@ import type { Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
 import { getCategoryConfig, CATEGORIES } from '../CategoryConfig'
 import { downloadCSV } from '../../utils/export'
+import { getReceiptPhoto } from '../../utils/firestore'
 
 interface Props {
   expenses: Expense[]
@@ -19,6 +20,22 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
+  const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null)
+  const [receiptError, setReceiptError] = useState('')
+
+  async function viewReceipt(expenseId: string) {
+    setReceiptError('')
+    setLoadingReceiptId(expenseId)
+    try {
+      const url = await getReceiptPhoto(trip.id, expenseId)
+      if (url) setViewingReceipt(url)
+      else setReceiptError("Couldn't load receipt.")
+    } catch {
+      setReceiptError("Couldn't load receipt.")
+    } finally {
+      setLoadingReceiptId(null)
+    }
+  }
 
   const q = searchQuery.trim().toLowerCase()
   const hasFilter = personFilter !== null || categoryFilter !== null || q !== ''
@@ -158,6 +175,10 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
         </button>
       </div>
 
+      {receiptError && (
+        <p className="text-[var(--orange)] text-sm bg-[var(--orange-tint)] rounded-[11px] p-3">{receiptError}</p>
+      )}
+
       {filtered.length === 0 && (
         <div className="flex flex-col items-center py-14 text-[var(--muted)]">
           <span className="text-4xl mb-3">🔍</span>
@@ -226,13 +247,14 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
                           {exp.category === 'custom' && exp.customCategory ? exp.customCategory : cat.label}
                         </span>
                         <div className="flex items-center gap-2">
-                          {exp.receiptPhotoUrl && (
+                          {exp.hasReceipt && (
                             <button
-                              onClick={() => setViewingReceipt(exp.receiptPhotoUrl!)}
-                              className="text-[var(--action)] text-base leading-none active:opacity-50"
+                              onClick={() => viewReceipt(exp.id)}
+                              disabled={loadingReceiptId === exp.id}
+                              className="text-[var(--action)] text-base leading-none active:opacity-50 disabled:opacity-50"
                               title="View receipt"
                             >
-                              📷
+                              {loadingReceiptId === exp.id ? '⏳' : '📷'}
                             </button>
                           )}
                           <span className="text-sm font-semibold text-[var(--ink)]">{formatINR(exp.amount)}</span>

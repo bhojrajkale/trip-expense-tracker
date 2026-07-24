@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Expense, Trip, SplitAmount } from '../../types'
 import { CATEGORIES } from '../CategoryConfig'
 import { todayISO, formatINR } from '../../utils/format'
 import { compressToDataUrl } from '../../utils/imageCompress'
 import { splitByPercentage } from '../../utils/settlement'
+import { getReceiptPhoto } from '../../utils/firestore'
 
 interface Props {
   trip: Trip
@@ -45,11 +46,36 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
   const [notes, setNotes] = useState(editExpense?.notes ?? '')
   const [error, setError] = useState('')
 
-  // Receipt state
-  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(editExpense?.receiptPhotoUrl)
+  // Receipt state. The receipt photo lives in its own subdoc (see
+  // firestore.ts saveExpense) — editExpense only carries `hasReceipt`, so an
+  // existing receipt is fetched lazily when opening the edit form rather
+  // than being present already.
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(undefined)
   const [receiptUploading, setReceiptUploading] = useState(false)
+  const [receiptLoading, setReceiptLoading] = useState(false)
   const [receiptError, setReceiptError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!editExpense?.hasReceipt) return
+    let cancelled = false
+    setReceiptLoading(true)
+    getReceiptPhoto(trip.id, editExpense.id)
+      .then((url) => {
+        if (!cancelled && url) setReceiptUrl(url)
+      })
+      .catch(() => {
+        if (!cancelled) setReceiptError('Could not load existing receipt.')
+      })
+      .finally(() => {
+        if (!cancelled) setReceiptLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+    // Only ever runs once per form instance (expenseId is stable for the life of this form)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const amountNum = parseFloat(amount) || 0
   const perPerson = splitBetween.length > 0 ? amountNum / splitBetween.length : 0
@@ -365,10 +391,15 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={receiptUploading}
+              disabled={receiptUploading || receiptLoading}
               className="flex items-center gap-2 px-4 py-3 rounded-[11px] border border-dashed border-[var(--disabled)] bg-[var(--surface)] text-[var(--muted)] text-sm active:scale-95 transition-transform disabled:opacity-50"
             >
-              {receiptUploading ? (
+              {receiptLoading ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-[var(--action)] border-t-transparent rounded-full animate-spin" />
+                  Loading receipt…
+                </>
+              ) : receiptUploading ? (
                 <>
                   <span className="inline-block w-4 h-4 border-2 border-[var(--action)] border-t-transparent rounded-full animate-spin" />
                   Uploading…
@@ -391,7 +422,7 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
 
         <button
           type="submit"
-          disabled={trip.members.length === 0 || receiptUploading}
+          disabled={trip.members.length === 0 || receiptUploading || receiptLoading}
           className="w-full py-4 rounded-full bg-[var(--action)] text-white font-medium text-base disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform"
         >
           {isEdit ? 'Save Changes' : 'Add Expense'}

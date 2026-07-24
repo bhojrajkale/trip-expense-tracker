@@ -350,11 +350,21 @@ export function useStore(uid: string | null) {
     removeTrip(id).catch(console.error)
   }, [])
 
+  // Optimistic local state keeps only `hasReceipt`, never the base64 photo
+  // itself — saveExpense() is what actually splits it into the receipt
+  // subdoc. Keeping the full string out of `state.expenses` means it isn't
+  // held in memory for every expense for the life of the trip, only for
+  // whichever one is currently being viewed/edited.
+  const withoutReceiptPayload = (expense: Expense): Expense => {
+    const { receiptPhotoUrl, ...rest } = expense
+    return { ...rest, hasReceipt: !!receiptPhotoUrl }
+  }
+
   const addExpense = useCallback(
     (draft: Omit<Expense, 'createdByUid'>) => {
       if (!uid) return
       const expense: Expense = { ...draft, createdByUid: uid }
-      dispatch({ type: 'ADD_EXPENSE', expense })
+      dispatch({ type: 'ADD_EXPENSE', expense: withoutReceiptPayload(expense) })
       saveExpense(expense.tripId, expense).catch(console.error)
       log(expense.tripId, 'expense_added', {
         amount: expense.amount,
@@ -366,7 +376,7 @@ export function useStore(uid: string | null) {
   )
 
   const updateExpense = useCallback((expense: Expense) => {
-    dispatch({ type: 'UPDATE_EXPENSE', expense })
+    dispatch({ type: 'UPDATE_EXPENSE', expense: withoutReceiptPayload(expense) })
     saveExpense(expense.tripId, expense).catch(console.error)
     log(expense.tripId, 'expense_updated', {
       amount: expense.amount,

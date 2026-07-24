@@ -58,6 +58,14 @@ export interface Expense {
   splitAmounts?: SplitAmount[]
   date: string
   notes: string
+  // Lightweight flag stored on the expense doc — the actual base64 photo
+  // lives in trips/{tripId}/expenses/{id}/receipt/data and is fetched
+  // lazily (getReceiptPhoto) so the realtime expenses listener never has
+  // to pull every receipt's payload on every snapshot.
+  hasReceipt?: boolean
+  // Only populated client-side when actively loaded (form draft while
+  // adding/editing, or the lazy-loaded full-screen viewer) — never written
+  // to the expense doc itself.
   receiptPhotoUrl?: string
 }
 

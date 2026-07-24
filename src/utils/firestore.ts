@@ -27,6 +27,8 @@ const tripsCol = collection(db, 'trips')
 const tripDoc = (tripId: string) => doc(db, 'trips', tripId)
 const previewDoc = (tripId: string) => doc(db, 'tripsPreview', tripId)
 const expensesCol = (tripId: string) => collection(db, 'trips', tripId, 'expenses')
+const receiptDoc = (tripId: string, expenseId: string) =>
+  doc(db, 'trips', tripId, 'expenses', expenseId, 'receipt', 'data')
 const activityCol = (tripId: string) => collection(db, 'trips', tripId, 'activity')
 const joinRequestsCol = (tripId: string) => collection(db, 'trips', tripId, 'joinRequests')
 const joinRequestDoc = (tripId: string, uid: string) => doc(db, 'trips', tripId, 'joinRequests', uid)
@@ -124,7 +126,11 @@ export async function removeTrip(tripId: string): Promise<void> {
     getDocs(joinRequestsCol(tripId)),
   ])
   const batch = writeBatch(db)
-  expSnap.docs.forEach((d) => batch.delete(d.ref))
+  expSnap.docs.forEach((d) => {
+    batch.delete(d.ref)
+    // Safe even when no receipt exists — deleting a missing doc is a no-op
+    batch.delete(receiptDoc(tripId, d.id))
+  })
   actSnap.docs.forEach((d) => batch.delete(d.ref))
   reqSnap.docs.forEach((d) => batch.delete(d.ref))
   batch.delete(previewDoc(tripId))
@@ -132,12 +138,33 @@ export async function removeTrip(tripId: string): Promise<void> {
   await batch.commit()
 }
 
+// The receipt photo (a ~150-300 KB base64 data URL) is written to its own
+// subdoc, never to the expense doc — otherwise the realtime expenses
+// listener would re-download every receipt's payload on every snapshot.
+// `hasReceipt` is the only trace of it left on the expense doc.
 export async function saveExpense(tripId: string, expense: Expense): Promise<void> {
-  await setDoc(doc(expensesCol(tripId), expense.id), clean(expense))
+  const { receiptPhotoUrl, ...rest } = expense
+  await setDoc(doc(expensesCol(tripId), expense.id), clean({ ...rest, hasReceipt: !!receiptPhotoUrl }))
+  if (receiptPhotoUrl) {
+    await setDoc(receiptDoc(tripId, expense.id), { photoUrl: receiptPhotoUrl })
+  } else {
+    await deleteDoc(receiptDoc(tripId, expense.id))
+  }
 }
 
 export async function removeExpense(tripId: string, expenseId: string): Promise<void> {
+  // Receipt first: its delete rule reads the parent expense doc via get(),
+  // so deleting them concurrently risks that read racing the expense's own
+  // deletion and getting denied.
+  await deleteDoc(receiptDoc(tripId, expenseId))
   await deleteDoc(doc(expensesCol(tripId), expenseId))
+}
+
+// Lazy fetch for the full-screen receipt viewer / edit-form prefill — only
+// called when a user actually wants to see a specific receipt.
+export async function getReceiptPhoto(tripId: string, expenseId: string): Promise<string | null> {
+  const snap = await getDoc(receiptDoc(tripId, expenseId))
+  return snap.exists() ? (snap.data().photoUrl as string) : null
 }
 
 // ─── Join flow (request → owner approval) ───────────────────────────────────

@@ -162,7 +162,7 @@ service cloud.firestore {
             && exp.notes is string && exp.notes.size() <= 200
             && (!('customCategory' in exp) || (exp.customCategory is string && exp.customCategory.size() <= 50))
             && (!('splitAmounts' in exp) || exp.splitAmounts is list)
-            && (!('receiptPhotoUrl' in exp) || exp.receiptPhotoUrl is string);
+            && (!('hasReceipt' in exp) || exp.hasReceipt is bool);
         }
 
         allow read: if request.auth.uid in trip().memberUids;
@@ -180,6 +180,30 @@ service cloud.firestore {
         allow delete: if request.auth.uid == trip().ownerUid
           || (request.auth.uid in trip().memberUids
               && resource.data.createdByUid == request.auth.uid);
+
+        // The receipt photo itself (base64 data URL, ~150-300 KB) lives here
+        // instead of on the expense doc, so the realtime expenses listener
+        // (subscribeExpenses) never has to pull every receipt's payload on
+        // every snapshot — only whoever opens a specific receipt reads this
+        // doc. Same creator-or-owner permission as the parent expense.
+        match /receipt/{receiptDocId} {
+          function parentExpense() {
+            return get(/databases/$(database)/documents/trips/$(tripId)/expenses/$(expenseId)).data;
+          }
+          function isValidReceipt(r) {
+            return r.keys().hasOnly(['photoUrl'])
+              && r.photoUrl is string
+              && r.photoUrl.size() <= 400000;
+          }
+          allow read: if request.auth.uid in trip().memberUids;
+          allow write: if isValidReceipt(request.resource.data)
+            && (request.auth.uid == trip().ownerUid
+                || (request.auth.uid in trip().memberUids
+                    && parentExpense().createdByUid == request.auth.uid));
+          allow delete: if request.auth.uid == trip().ownerUid
+            || (request.auth.uid in trip().memberUids
+                && parentExpense().createdByUid == request.auth.uid);
+        }
       }
 
       // Append-only activity feed: members read and add entries stamped with

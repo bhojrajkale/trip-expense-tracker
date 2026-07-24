@@ -363,11 +363,14 @@ export default function AddExpenseForm({ trip, editExpense, onSave, onCancel }: 
         {/* Receipt */}
         <div>
           <label className="block text-xs text-[var(--muted)] mb-2 font-medium">Receipt</label>
+          {/* No `capture` attribute: on iOS Safari, capture="environment" skips
+              straight to the camera and hides the "Photo Library"/"Choose File"
+              options from the action sheet. Omitting it keeps camera as one of
+              several choices instead of the only one. */}
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={handleReceiptSelect}
           />

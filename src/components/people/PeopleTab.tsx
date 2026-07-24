@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Member, Trip, Expense, JoinRequest } from '../../types'
 import { isContactsSupported, pickContacts } from '../../utils/contacts'
 import { initials, formatINR } from '../../utils/format'
@@ -39,17 +39,33 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
   const [showInvite, setShowInvite] = useState(false)
   const [toast, setToast] = useState('')
 
-  const balances = computeBalances(expenses, trip.members)
-  const settlements = simplified
-    ? minimizeSettlements(balances)
-    : computeRawDebts(expenses)
+  const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
+  const settlements = useMemo(
+    () => (simplified ? minimizeSettlements(balances) : computeRawDebts(expenses)),
+    [simplified, balances, expenses]
+  )
 
-  const paidSettlements = trip.paidSettlements ?? []
+  const paidSettlements = useMemo(() => trip.paidSettlements ?? [], [trip.paidSettlements])
   const isPaid = (from: string, to: string) =>
     paidSettlements.some((p) => p.from === from && p.to === to)
 
   const unpaidCount = settlements.filter((s) => !isPaid(s.from, s.to)).length
   const allPaid = settlements.length > 0 && unpaidCount === 0
+
+  // Per-member expense counts and unpaid-balance flags, computed once per
+  // expenses/settlements change instead of re-scanning per member per render.
+  const expenseCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const m of trip.members) counts.set(m.id, countMemberExpenses(expenses, m.id))
+    return counts
+  }, [expenses, trip.members])
+  const unpaidBalanceFlags = useMemo(() => {
+    const flags = new Map<string, boolean>()
+    for (const m of trip.members) {
+      flags.set(m.id, memberHasUnpaidBalance(settlements, paidSettlements, m.id))
+    }
+    return flags
+  }, [settlements, paidSettlements, trip.members])
 
   async function handlePickContacts() {
     setContactsError('')
@@ -244,8 +260,8 @@ export default function PeopleTab({ trip, expenses, currentUid, isOwner, joinReq
             const color = AVATAR_COLORS[idx % AVATAR_COLORS.length]
             const isConfirming = confirmRemove === member.id
             const isEditing = editingId === member.id
-            const expenseCount = countMemberExpenses(expenses, member.id)
-            const hasUnpaidBalance = memberHasUnpaidBalance(settlements, paidSettlements, member.id)
+            const expenseCount = expenseCounts.get(member.id) ?? 0
+            const hasUnpaidBalance = unpaidBalanceFlags.get(member.id) ?? false
             const avatar = member.photoURL && !brokenPhotos.has(member.id) ? (
               <img
                 src={member.photoURL}

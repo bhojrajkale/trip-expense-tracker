@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Expense, Trip } from '../../types'
 import { formatINR, formatDate } from '../../utils/format'
 import { getCategoryConfig, CATEGORIES } from '../CategoryConfig'
@@ -23,25 +23,30 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
   const q = searchQuery.trim().toLowerCase()
   const hasFilter = personFilter !== null || categoryFilter !== null || q !== ''
 
-  const filtered = expenses.filter((e) => {
-    if (personFilter && e.paidBy !== personFilter) return false
-    if (categoryFilter && e.category !== categoryFilter) return false
-    if (q) {
-      const cat = getCategoryConfig(e.category)
-      const label = (e.category === 'custom' ? (e.customCategory ?? '') : cat.label).toLowerCase()
-      if (!label.includes(q) && !e.notes.toLowerCase().includes(q)) return false
-    }
-    return true
-  })
-  const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
+  const filtered = useMemo(
+    () =>
+      expenses.filter((e) => {
+        if (personFilter && e.paidBy !== personFilter) return false
+        if (categoryFilter && e.category !== categoryFilter) return false
+        if (q) {
+          const cat = getCategoryConfig(e.category)
+          const label = (e.category === 'custom' ? (e.customCategory ?? '') : cat.label).toLowerCase()
+          if (!label.includes(q) && !e.notes.toLowerCase().includes(q)) return false
+        }
+        return true
+      }),
+    [expenses, personFilter, categoryFilter, q]
+  )
+  const filteredTotal = useMemo(() => filtered.reduce((s, e) => s + e.amount, 0), [filtered])
 
-  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
-
-  const grouped = sorted.reduce<Record<string, Expense[]>>((acc, exp) => {
-    if (!acc[exp.date]) acc[exp.date] = []
-    acc[exp.date].push(exp)
-    return acc
-  }, {})
+  const grouped = useMemo(() => {
+    const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
+    return sorted.reduce<Record<string, Expense[]>>((acc, exp) => {
+      if (!acc[exp.date]) acc[exp.date] = []
+      acc[exp.date].push(exp)
+      return acc
+    }, {})
+  }, [filtered])
 
   const memberName = (id: string) =>
     trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
@@ -52,6 +57,12 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
   // Rules only allow the creator (or trip owner) to modify an expense —
   // hide controls that would be denied server-side anyway
   const canModify = (exp: Expense) => isOwner || exp.createdByUid === currentUid
+
+  // Only show category chips for categories that appear in this trip's expenses
+  const usedCategories = useMemo(
+    () => CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id)),
+    [expenses]
+  )
 
   if (expenses.length === 0) {
     return (
@@ -67,9 +78,6 @@ export default function ExpenseList({ expenses, trip, currentUid, isOwner, onEdi
     'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap active:scale-95 transition-transform'
   const chipOn = 'bg-[var(--action)] text-white border-[var(--action)]'
   const chipOff = 'bg-[var(--surface)] text-[var(--ink)] border-[var(--hairline)]'
-
-  // Only show category chips for categories that appear in this trip's expenses
-  const usedCategories = CATEGORIES.filter((c) => expenses.some((e) => e.category === c.id))
 
   return (
     <div className="space-y-4 p-4 pb-32">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
@@ -22,12 +22,12 @@ export default function Dashboard({ trip, expenses }: Props) {
     }
   }
 
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
   const remaining = trip.budget - totalSpent
 
-  const balances = computeBalances(expenses, trip.members)
-  const settlements = minimizeSettlements(balances)
+  const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
+  const settlements = useMemo(() => minimizeSettlements(balances), [balances])
   const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
 
   const card = 'bg-[var(--surface)] border border-[var(--hairline)] rounded-[18px] p-4'

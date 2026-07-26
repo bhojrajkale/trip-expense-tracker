@@ -42,11 +42,14 @@ interface Props {
 
 export default function Dashboard({ trip, expenses }: Props) {
   const [showShare, setShowShare] = useState(false)
+  const [showPdfOptions, setShowPdfOptions] = useState(false)
+  const [includeCategoryBreakdown, setIncludeCategoryBreakdown] = useState(true)
   const [pdfError, setPdfError] = useState('')
 
-  function handlePdf() {
+  function handleGeneratePdf() {
     setPdfError('')
-    const opened = printTripSummary(trip, expenses)
+    setShowPdfOptions(false)
+    const opened = printTripSummary(trip, expenses, { includeCategoryBreakdown })
     if (!opened) {
       setPdfError("Couldn't open the PDF preview — your browser may be blocking pop-ups for this site.")
     }
@@ -108,7 +111,7 @@ export default function Dashboard({ trip, expenses }: Props) {
     <div className="p-4 pb-32 space-y-4">
       <div className="flex items-center justify-end gap-2">
         <button
-          onClick={handlePdf}
+          onClick={() => setShowPdfOptions(true)}
           className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] bg-[var(--surface)] border border-[var(--hairline)] px-3 py-2 rounded-full active:scale-95 transition-transform"
         >
           📄 PDF
@@ -228,6 +231,51 @@ export default function Dashboard({ trip, expenses }: Props) {
 
       {showShare && (
         <ShareModal trip={trip} expenses={expenses} onClose={() => setShowShare(false)} />
+      )}
+
+      {showPdfOptions && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end bg-black/40"
+          onClick={(e) => e.target === e.currentTarget && setShowPdfOptions(false)}
+        >
+          <div className="w-full bg-[var(--bg)] rounded-t-[18px] border-t border-[var(--hairline)]">
+            <div className="w-10 h-1 bg-[var(--disabled)] rounded-full mx-auto mt-3 mb-4" />
+            <div className="px-4 pb-2">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.2px' }}>
+                  Export PDF
+                </h2>
+                <button onClick={() => setShowPdfOptions(false)} className="text-[var(--muted)] text-sm">Close</button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIncludeCategoryBreakdown((v) => !v)}
+                className="w-full flex items-center gap-3 p-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--surface)] mb-5 text-left"
+              >
+                <span
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                    includeCategoryBreakdown ? 'bg-[var(--action)] border-[var(--action)]' : 'border-[var(--disabled)]'
+                  }`}
+                >
+                  {includeCategoryBreakdown && <span className="text-white text-xs">✓</span>}
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm text-[var(--ink)]">Include spending by category</span>
+                  <span className="block text-xs text-[var(--muted)] mt-0.5">Adds a category breakdown table to the PDF</span>
+                </span>
+              </button>
+
+              <button
+                onClick={handleGeneratePdf}
+                className="w-full py-4 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
+                style={{ marginBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+              >
+                Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

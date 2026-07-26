@@ -16,11 +16,19 @@ export function esc(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+export interface PrintOptions {
+  // Defaults to true — the category breakdown was always shown before this
+  // option existed, so an omitted option must not silently drop a section
+  // a caller didn't ask to remove.
+  includeCategoryBreakdown?: boolean
+}
+
 // Returns false (instead of failing silently) when the popup couldn't be
 // opened — iOS Safari, especially in installed-PWA/standalone mode, blocks
 // window.open() with no visible "popup blocked" banner at all, so without
 // this the button just does nothing and the user has no way to tell why.
-export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
+export function printTripSummary(trip: Trip, expenses: Expense[], options: PrintOptions = {}): boolean {
+  const includeCategoryBreakdown = options.includeCategoryBreakdown ?? true
   const memberName = (id: string) => esc(trip.members.find((m) => m.id === id)?.name ?? 'Unknown')
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
@@ -208,10 +216,11 @@ export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
     </div>
   </div>` : ''}
 
+  ${includeCategoryBreakdown ? `
   <div class="section">
     <h2>Spending by Category</h2>
     <table><tbody>${catRows}</tbody></table>
-  </div>
+  </div>` : ''}
 
   <div class="section">
     <h2>Settlements — Who Pays Whom</h2>

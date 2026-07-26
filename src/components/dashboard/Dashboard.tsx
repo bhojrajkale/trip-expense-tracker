@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
@@ -30,6 +30,11 @@ function useCssVars(names: string[]): Record<string, string> {
   return values
 }
 
+// 8 fixed categorical hues, assigned in order, never cycled (CVD-safety
+// mechanism — see dataviz skill). Past this ceiling the smallest spenders
+// fold into a single gray "Other" slice rather than generating a 9th hue.
+const CHART_SLOTS = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-7', '--chart-8']
+
 interface Props {
   trip: Trip
   expenses: Expense[]
@@ -55,7 +60,7 @@ export default function Dashboard({ trip, expenses }: Props) {
   const settlements = useMemo(() => minimizeSettlements(balances), [balances])
   const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
 
-  // Biggest spender first — the ranking is the point of a bar chart like this.
+  // Biggest spender first — the ranking is the point of a chart like this.
   const spendByMember = useMemo(
     () =>
       trip.members
@@ -67,7 +72,18 @@ export default function Dashboard({ trip, expenses }: Props) {
     [expenses, trip.members]
   )
 
-  const chartColors = useCssVars(['--action', '--ink', '--muted', '--divider', '--surface', '--hairline'])
+  // Zero-spend members don't get a slice.
+  const pieData = useMemo(() => {
+    const withSpend = spendByMember.filter((m) => m.amount > 0)
+    if (withSpend.length <= CHART_SLOTS.length) return withSpend
+    const head = withSpend.slice(0, CHART_SLOTS.length - 1)
+    const tail = withSpend.slice(CHART_SLOTS.length - 1)
+    return [...head, { name: 'Other', amount: tail.reduce((s, m) => s + m.amount, 0) }]
+  }, [spendByMember])
+
+  const chartColors = useCssVars(['--ink', '--muted', '--divider', '--surface', '--hairline', ...CHART_SLOTS])
+  const sliceColor = (i: number, name: string) =>
+    name === 'Other' ? chartColors['--muted'] : chartColors[CHART_SLOTS[i]]
 
   const card = 'bg-[var(--surface)] border border-[var(--hairline)] rounded-[18px] p-4'
 
@@ -108,47 +124,32 @@ export default function Dashboard({ trip, expenses }: Props) {
       <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
 
       {/* Per-person spend */}
-      {trip.members.length > 0 && (
+      {pieData.length > 0 && (
         <div className={card}>
           <p className="text-sm font-semibold text-[var(--ink)] mb-3" style={{ letterSpacing: '-0.1px' }}>Spent by Member</p>
-          {/* Single series (amount per member) — no legend needed, the card
-              title already says what's plotted; identity comes from the axis
-              labels, not from per-bar color. */}
-          <div style={{ width: '100%', height: Math.max(120, spendByMember.length * 44) }}>
-            {chartColors['--action'] && (
+          <div className="relative" style={{ width: '100%', height: 220 }}>
+            {chartColors['--chart-1'] && (
               <ResponsiveContainer>
-                <BarChart
-                  data={spendByMember}
-                  layout="vertical"
-                  margin={{ top: 4, right: 32, bottom: 4, left: 4 }}
-                  barCategoryGap={12}
-                >
-                  <CartesianGrid
-                    horizontal={false}
-                    stroke={chartColors['--divider']}
-                    strokeWidth={1}
-                  />
-                  <XAxis
-                    type="number"
-                    // Headroom so the direct value label at the tip of the
-                    // largest bar never gets clipped against the chart edge.
-                    domain={[0, (max: number) => Math.ceil((max * 1.2) / 500) * 500]}
-                    tickFormatter={(v) => formatINR(v)}
-                    tick={{ fill: chartColors['--muted'], fontSize: 11 }}
-                    axisLine={{ stroke: chartColors['--hairline'] }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={84}
-                    tick={{ fill: chartColors['--ink'], fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="amount"
+                    nameKey="name"
+                    innerRadius="58%"
+                    outerRadius="90%"
+                    paddingAngle={pieData.length > 1 ? 2 : 0}
+                    stroke={chartColors['--surface']}
+                    strokeWidth={2}
+                  >
+                    {pieData.map((slice, i) => (
+                      <Cell key={slice.name} fill={sliceColor(i, slice.name)} />
+                    ))}
+                  </Pie>
                   <Tooltip
-                    cursor={{ fill: chartColors['--divider'] }}
-                    formatter={(value) => [formatINR(Number(value)), 'Spent']}
+                    formatter={(value, name) => [
+                      `${formatINR(Number(value))} · ${((Number(value) / totalSpent) * 100).toFixed(0)}%`,
+                      name,
+                    ]}
                     contentStyle={{
                       background: chartColors['--surface'],
                       border: `1px solid ${chartColors['--hairline']}`,
@@ -156,24 +157,38 @@ export default function Dashboard({ trip, expenses }: Props) {
                       fontSize: 12,
                       color: chartColors['--ink'],
                     }}
-                    // Value text stays in the ink token, not the bar's accent
-                    // color — the bar itself is the identity cue, text never
-                    // carries the data color.
                     itemStyle={{ color: chartColors['--ink'], fontWeight: 600 }}
                     labelStyle={{ color: chartColors['--muted'] }}
                   />
-                  <Bar dataKey="amount" fill={chartColors['--action']} radius={[0, 6, 6, 0]} maxBarSize={22}>
-                    <LabelList
-                      dataKey="amount"
-                      position="right"
-                      formatter={(v) => formatINR(Number(v))}
-                      fill={chartColors['--muted']}
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
+                </PieChart>
               </ResponsiveContainer>
             )}
+            {/* Center readout — the hole in the donut is otherwise dead space */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] text-[var(--muted)]">Total</span>
+              <span className="text-lg font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.3px' }}>
+                {formatINR(totalSpent)}
+              </span>
+            </div>
+          </div>
+          {/* Direct labels for every slice — identity + value + share stay
+              readable without hovering, and never depend on color alone. */}
+          <div className="space-y-2 mt-1">
+            {pieData.map((slice, i) => (
+              <div key={slice.name} className="flex items-center gap-2 text-sm">
+                <span
+                  className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
+                  style={{ backgroundColor: sliceColor(i, slice.name) }}
+                />
+                <span className="text-[var(--ink)] truncate">{slice.name}</span>
+                <span className="text-[var(--muted)] text-xs flex-shrink-0">
+                  {totalSpent > 0 ? ((slice.amount / totalSpent) * 100).toFixed(0) : 0}%
+                </span>
+                <span className="text-[var(--ink)] font-semibold ml-auto flex-shrink-0">
+                  {formatINR(slice.amount)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -25,6 +25,17 @@
   --orange-tint:         rgba(255, 149, 0, 0.10);
   --surface-glass:       rgba(255, 255, 255, 0.80);
   --surface-glass-nav:   rgba(255, 255, 255, 0.90);
+  /* Categorical chart palette (member-spend donut) — validated 8-hue,
+     fixed-order set from the dataviz skill's reference palette. Order is
+     the CVD-safety mechanism: never reorder or cycle past slot 8. */
+  --chart-1:             #2a78d6;
+  --chart-2:             #eb6834;
+  --chart-3:             #1baf7a;
+  --chart-4:             #eda100;
+  --chart-5:             #e87ba4;
+  --chart-6:             #008300;
+  --chart-7:             #4a3aa7;
+  --chart-8:             #e34948;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +63,14 @@
     --orange-tint:         rgba(255, 159, 10, 0.10);
     --surface-glass:       rgba(28, 28, 30, 0.80);
     --surface-glass-nav:   rgba(28, 28, 30, 0.90);
+    --chart-1:             #3987e5;
+    --chart-2:             #d95926;
+    --chart-3:             #199e70;
+    --chart-4:             #c98500;
+    --chart-5:             #d55181;
+    --chart-6:             #008300;
+    --chart-7:             #9085e9;
+    --chart-8:             #e66767;
   }
 }
 
@@ -79,6 +98,14 @@
   --orange-tint:         rgba(255, 159, 10, 0.10);
   --surface-glass:       rgba(28, 28, 30, 0.80);
   --surface-glass-nav:   rgba(28, 28, 30, 0.90);
+  --chart-1:             #3987e5;
+  --chart-2:             #d95926;
+  --chart-3:             #199e70;
+  --chart-4:             #c98500;
+  --chart-5:             #d55181;
+  --chart-6:             #008300;
+  --chart-7:             #9085e9;
+  --chart-8:             #e66767;
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */

@@ -16,16 +16,80 @@ export function esc(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+export interface PrintOptions {
+  // Defaults to true — the category breakdown was always shown before this
+  // option existed, so an omitted option must not silently drop a section
+  // a caller didn't ask to remove.
+  includeCategoryBreakdown?: boolean
+}
+
 // Returns false (instead of failing silently) when the popup couldn't be
 // opened — iOS Safari, especially in installed-PWA/standalone mode, blocks
 // window.open() with no visible "popup blocked" banner at all, so without
 // this the button just does nothing and the user has no way to tell why.
-export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
+export function printTripSummary(trip: Trip, expenses: Expense[], options: PrintOptions = {}): boolean {
+  const includeCategoryBreakdown = options.includeCategoryBreakdown ?? true
   const memberName = (id: string) => esc(trip.members.find((m) => m.id === id)?.name ?? 'Unknown')
 
   const totalSpent = expenses.reduce((s, e) => s + e.amount, 0)
   const budgetPct = trip.budget > 0 ? Math.min(Math.round((totalSpent / trip.budget) * 100), 100) : 0
   const remaining = trip.budget - totalSpent
+  // Equal-share benchmark: total spent so far divided evenly, mirrors the
+  // Dashboard's "Expected per head" figure and per-member deltas.
+  const perHeadExpected = trip.members.length > 0 ? totalSpent / trip.members.length : 0
+
+  // Per-member spend (biggest first), folding past 8 into "Other" — same
+  // rule as the Dashboard donut, using that chart's validated light-mode hex
+  // set directly since this print window has no access to the app's CSS
+  // custom properties (it's a standalone document, always on a white page).
+  const CHART_HEXES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948']
+  const OTHER_HEX = '#7a7a7a'
+  const spendByMember = trip.members
+    .map((m) => ({
+      name: m.name,
+      amount: expenses.filter((e) => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0),
+    }))
+    .sort((a, b) => b.amount - a.amount)
+  const withSpend = spendByMember.filter((m) => m.amount > 0)
+  const pieData = withSpend.length <= CHART_HEXES.length
+    ? withSpend
+    : [
+        ...withSpend.slice(0, CHART_HEXES.length - 1),
+        { name: 'Other', amount: withSpend.slice(CHART_HEXES.length - 1).reduce((s, m) => s + m.amount, 0) },
+      ]
+
+  // Donut ring built from stacked SVG <circle> strokes (stroke-dasharray
+  // trick) rather than a canvas/library render — this module has zero new
+  // npm dependencies and runs in a bare print popup with no React tree.
+  const DONUT_R = 70
+  const DONUT_STROKE = 26
+  const DONUT_CIRC = 2 * Math.PI * DONUT_R
+  let cumulativeFraction = 0
+  const donutCircles = pieData.map((slice, i) => {
+    const fraction = totalSpent > 0 ? slice.amount / totalSpent : 0
+    const dash = fraction * DONUT_CIRC
+    const dashOffset = DONUT_CIRC * (1 - cumulativeFraction)
+    cumulativeFraction += fraction
+    const color = slice.name === 'Other' ? OTHER_HEX : CHART_HEXES[i]
+    return `<circle cx="100" cy="100" r="${DONUT_R}" fill="none" stroke="${color}" stroke-width="${DONUT_STROKE}" stroke-dasharray="${dash.toFixed(2)} ${(DONUT_CIRC - dash).toFixed(2)}" stroke-dashoffset="${dashOffset.toFixed(2)}" />`
+  }).join('')
+
+  const pieLegendRows = pieData.map((slice, i) => {
+    const pct = totalSpent > 0 ? Math.round((slice.amount / totalSpent) * 100) : 0
+    const color = slice.name === 'Other' ? OTHER_HEX : CHART_HEXES[i]
+    // "Other" folds several members together, so a single-person delta
+    // against the average wouldn't mean anything for it.
+    const delta = slice.name === 'Other' ? null : slice.amount - perHeadExpected
+    const deltaHtml = delta !== null && Math.abs(delta) >= 1
+      ? `<div style="font-size:10px;color:${delta > 0 ? '#ff9500' : '#16a34a'};margin-top:1px">${delta > 0 ? '+' : '−'}${formatINR(Math.abs(delta))} vs expected per head</div>`
+      : ''
+    return `
+    <tr>
+      <td style="width:18px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color}"></span></td>
+      <td>${esc(slice.name)}<span style="color:#7a7a7a;font-size:11px;margin-left:6px">${pct}%</span>${deltaHtml}</td>
+      <td style="text-align:right;font-weight:600">${formatINR(slice.amount)}</td>
+    </tr>`
+  }).join('')
 
   // Category totals
   const catMap = new Map<string, { emoji: string; label: string; amount: number }>()
@@ -106,6 +170,13 @@ export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
     .bar-bg { background: #f0f0f0; border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px; }
     .bar-fill { height: 6px; border-radius: 4px; background: ${budgetPct > 100 ? '#ef4444' : budgetPct > 80 ? '#ff9500' : '#0066cc'}; width: ${budgetPct}%; }
     .bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: #7a7a7a; }
+    .per-head-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+    .per-head-row span:last-child { font-size: 14px; font-weight: 700; }
+    .donut-wrap { display: flex; align-items: center; gap: 24px; }
+    .donut-svg-holder { position: relative; width: 200px; height: 200px; flex-shrink: 0; }
+    .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .donut-center .label { font-size: 10px; color: #7a7a7a; }
+    .donut-center .value { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
     table { width: 100%; border-collapse: collapse; }
     td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
     tr:last-child td { border-bottom: none; }
@@ -125,12 +196,31 @@ export function printTripSummary(trip: Trip, expenses: Expense[]): boolean {
     </div>
     <div class="bar-bg"><div class="bar-fill"></div></div>
     <div class="bar-labels"><span>${budgetPct}% used</span><span>Budget: ${formatINR(trip.budget)}</span></div>
+    ${totalSpent > 0 ? `<div class="per-head-row"><span style="font-size:11px;color:#7a7a7a">Expected per head (so far)</span><span>${formatINR(perHeadExpected)}</span></div>` : ''}
   </div>
 
+  ${pieData.length > 0 ? `
+  <div class="section">
+    <h2>Spending by Member</h2>
+    <div class="donut-wrap">
+      <div class="donut-svg-holder">
+        <svg width="200" height="200" viewBox="0 0 200 200">
+          <g transform="rotate(-90 100 100)">${donutCircles}</g>
+        </svg>
+        <div class="donut-center">
+          <span class="label">Total</span>
+          <span class="value">${formatINR(totalSpent)}</span>
+        </div>
+      </div>
+      <table style="flex:1"><tbody>${pieLegendRows}</tbody></table>
+    </div>
+  </div>` : ''}
+
+  ${includeCategoryBreakdown ? `
   <div class="section">
     <h2>Spending by Category</h2>
     <table><tbody>${catRows}</tbody></table>
-  </div>
+  </div>` : ''}
 
   <div class="section">
     <h2>Settlements — Who Pays Whom</h2>

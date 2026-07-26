@@ -42,11 +42,14 @@ interface Props {
 
 export default function Dashboard({ trip, expenses }: Props) {
   const [showShare, setShowShare] = useState(false)
+  const [showPdfOptions, setShowPdfOptions] = useState(false)
+  const [includeCategoryBreakdown, setIncludeCategoryBreakdown] = useState(true)
   const [pdfError, setPdfError] = useState('')
 
-  function handlePdf() {
+  function handleGeneratePdf() {
     setPdfError('')
-    const opened = printTripSummary(trip, expenses)
+    setShowPdfOptions(false)
+    const opened = printTripSummary(trip, expenses, { includeCategoryBreakdown })
     if (!opened) {
       setPdfError("Couldn't open the PDF preview — your browser may be blocking pop-ups for this site.")
     }
@@ -55,6 +58,10 @@ export default function Dashboard({ trip, expenses }: Props) {
   const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses])
   const budgetPct = trip.budget > 0 ? Math.min((totalSpent / trip.budget) * 100, 100) : 0
   const remaining = trip.budget - totalSpent
+  // Equal-share benchmark: what everyone would have paid so far if the
+  // trip's spend to date were split evenly — not a settlement, just the
+  // reference line the per-member breakdown compares each person against.
+  const perHeadExpected = trip.members.length > 0 ? totalSpent / trip.members.length : 0
 
   const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
   const settlements = useMemo(() => minimizeSettlements(balances), [balances])
@@ -90,7 +97,7 @@ export default function Dashboard({ trip, expenses }: Props) {
   if (expenses.length === 0) {
     return (
       <div className="p-4 pb-32 space-y-4">
-        <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
+        <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} perHeadExpected={perHeadExpected} />
         <div className="flex flex-col items-center py-16 text-[var(--muted)]">
           <span className="text-5xl mb-3">📊</span>
           <p className="text-sm">No expenses yet.</p>
@@ -104,7 +111,7 @@ export default function Dashboard({ trip, expenses }: Props) {
     <div className="p-4 pb-32 space-y-4">
       <div className="flex items-center justify-end gap-2">
         <button
-          onClick={handlePdf}
+          onClick={() => setShowPdfOptions(true)}
           className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted)] bg-[var(--surface)] border border-[var(--hairline)] px-3 py-2 rounded-full active:scale-95 transition-transform"
         >
           📄 PDF
@@ -121,7 +128,7 @@ export default function Dashboard({ trip, expenses }: Props) {
         <p className="text-[var(--orange)] text-sm bg-[var(--orange-tint)] rounded-[11px] p-3">{pdfError}</p>
       )}
 
-      <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
+      <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} perHeadExpected={perHeadExpected} />
 
       {/* Per-person spend */}
       {pieData.length > 0 && (
@@ -173,22 +180,34 @@ export default function Dashboard({ trip, expenses }: Props) {
           </div>
           {/* Direct labels for every slice — identity + value + share stay
               readable without hovering, and never depend on color alone. */}
-          <div className="space-y-2 mt-1">
-            {pieData.map((slice, i) => (
-              <div key={slice.name} className="flex items-center gap-2 text-sm">
-                <span
-                  className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
-                  style={{ backgroundColor: sliceColor(i, slice.name) }}
-                />
-                <span className="text-[var(--ink)] truncate">{slice.name}</span>
-                <span className="text-[var(--muted)] text-xs flex-shrink-0">
-                  {totalSpent > 0 ? ((slice.amount / totalSpent) * 100).toFixed(0) : 0}%
-                </span>
-                <span className="text-[var(--ink)] font-semibold ml-auto flex-shrink-0">
-                  {formatINR(slice.amount)}
-                </span>
-              </div>
-            ))}
+          <div className="space-y-2.5 mt-1">
+            {pieData.map((slice, i) => {
+              // "Other" is a folded-together bucket of several members, so a
+              // single-person delta against the average would be misleading.
+              const delta = slice.name === 'Other' ? null : slice.amount - perHeadExpected
+              return (
+                <div key={slice.name}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span
+                      className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
+                      style={{ backgroundColor: sliceColor(i, slice.name) }}
+                    />
+                    <span className="text-[var(--ink)] truncate">{slice.name}</span>
+                    <span className="text-[var(--muted)] text-xs flex-shrink-0">
+                      {totalSpent > 0 ? ((slice.amount / totalSpent) * 100).toFixed(0) : 0}%
+                    </span>
+                    <span className="text-[var(--ink)] font-semibold ml-auto flex-shrink-0">
+                      {formatINR(slice.amount)}
+                    </span>
+                  </div>
+                  {delta !== null && Math.abs(delta) >= 1 && (
+                    <p className={`text-[10px] mt-0.5 pl-[18px] ${delta > 0 ? 'text-[var(--orange)]' : 'text-[var(--green)]'}`}>
+                      {delta > 0 ? '+' : '−'}{formatINR(Math.abs(delta))} vs expected per head
+                    </p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -213,14 +232,59 @@ export default function Dashboard({ trip, expenses }: Props) {
       {showShare && (
         <ShareModal trip={trip} expenses={expenses} onClose={() => setShowShare(false)} />
       )}
+
+      {showPdfOptions && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end bg-black/40"
+          onClick={(e) => e.target === e.currentTarget && setShowPdfOptions(false)}
+        >
+          <div className="w-full bg-[var(--bg)] rounded-t-[18px] border-t border-[var(--hairline)]">
+            <div className="w-10 h-1 bg-[var(--disabled)] rounded-full mx-auto mt-3 mb-4" />
+            <div className="px-4 pb-2">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.2px' }}>
+                  Export PDF
+                </h2>
+                <button onClick={() => setShowPdfOptions(false)} className="text-[var(--muted)] text-sm">Close</button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIncludeCategoryBreakdown((v) => !v)}
+                className="w-full flex items-center gap-3 p-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--surface)] mb-5 text-left"
+              >
+                <span
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                    includeCategoryBreakdown ? 'bg-[var(--action)] border-[var(--action)]' : 'border-[var(--disabled)]'
+                  }`}
+                >
+                  {includeCategoryBreakdown && <span className="text-white text-xs">✓</span>}
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm text-[var(--ink)]">Include spending by category</span>
+                  <span className="block text-xs text-[var(--muted)] mt-0.5">Adds a category breakdown table to the PDF</span>
+                </span>
+              </button>
+
+              <button
+                onClick={handleGeneratePdf}
+                className="w-full py-4 rounded-full bg-[var(--action)] text-white font-medium text-base active:scale-95 transition-transform"
+                style={{ marginBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+              >
+                Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function BudgetCard({
-  totalSpent, budget, budgetPct, remaining,
+  totalSpent, budget, budgetPct, remaining, perHeadExpected,
 }: {
-  totalSpent: number; budget: number; budgetPct: number; remaining: number
+  totalSpent: number; budget: number; budgetPct: number; remaining: number; perHeadExpected: number
 }) {
   const isOver = remaining < 0
   const isWarning = !isOver && budgetPct > 80
@@ -251,6 +315,12 @@ function BudgetCard({
         <span className="text-[10px] text-[var(--muted)]">{budgetPct.toFixed(0)}% used</span>
         <span className="text-[10px] text-[var(--muted)]">Budget: {formatINR(budget)}</span>
       </div>
+      {totalSpent > 0 && (
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-[var(--divider)]">
+          <span className="text-xs text-[var(--muted)]">Expected per head (so far)</span>
+          <span className="text-sm font-semibold text-[var(--ink)]">{formatINR(perHeadExpected)}</span>
+        </div>
+      )}
     </div>
   )
 }

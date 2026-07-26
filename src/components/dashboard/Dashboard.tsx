@@ -1,9 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
 import ShareModal from '../ShareModal'
 import { printTripSummary } from '../../utils/printPDF'
+
+// Resolves CSS custom properties to their current computed value so recharts
+// (which needs real color strings, not var(...), for reliable cross-browser
+// SVG rendering — notably iOS Safari) stays in sync with the light/dark
+// toggle. Re-reads whenever <html data-theme> changes.
+function useCssVars(names: string[]): Record<string, string> {
+  const [values, setValues] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const read = () => {
+      const style = getComputedStyle(document.documentElement)
+      setValues(Object.fromEntries(names.map((n) => [n, style.getPropertyValue(n).trim()])))
+    }
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+    // `names` is a fixed literal array at each call site; re-running per
+    // render would defeat the MutationObserver's whole purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return values
+}
 
 interface Props {
   trip: Trip
@@ -29,6 +54,20 @@ export default function Dashboard({ trip, expenses }: Props) {
   const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
   const settlements = useMemo(() => minimizeSettlements(balances), [balances])
   const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  // Biggest spender first — the ranking is the point of a bar chart like this.
+  const spendByMember = useMemo(
+    () =>
+      trip.members
+        .map((m) => ({
+          name: m.name,
+          amount: expenses.filter((e) => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0),
+        }))
+        .sort((a, b) => b.amount - a.amount),
+    [expenses, trip.members]
+  )
+
+  const chartColors = useCssVars(['--action', '--ink', '--muted', '--divider', '--surface', '--hairline'])
 
   const card = 'bg-[var(--surface)] border border-[var(--hairline)] rounded-[18px] p-4'
 
@@ -72,28 +111,69 @@ export default function Dashboard({ trip, expenses }: Props) {
       {trip.members.length > 0 && (
         <div className={card}>
           <p className="text-sm font-semibold text-[var(--ink)] mb-3" style={{ letterSpacing: '-0.1px' }}>Spent by Member</p>
-          <div className="space-y-3">
-            {trip.members.map((member) => {
-              const spent = expenses
-                .filter((e) => e.paidBy === member.id)
-                .reduce((s, e) => s + e.amount, 0)
-              const pct = totalSpent > 0 ? (spent / totalSpent) * 100 : 0
-              return (
-                <div key={member.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--ink)]">{member.name}</span>
-                    <span className="text-sm font-semibold text-[var(--ink)]">{formatINR(spent)}</span>
-                  </div>
-                  <div className="bg-[var(--divider)] rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-1.5 rounded-full bg-[var(--action)] transition-all duration-300"
-                      style={{ width: `${pct}%` }}
+          {/* Single series (amount per member) — no legend needed, the card
+              title already says what's plotted; identity comes from the axis
+              labels, not from per-bar color. */}
+          <div style={{ width: '100%', height: Math.max(120, spendByMember.length * 44) }}>
+            {chartColors['--action'] && (
+              <ResponsiveContainer>
+                <BarChart
+                  data={spendByMember}
+                  layout="vertical"
+                  margin={{ top: 4, right: 32, bottom: 4, left: 4 }}
+                  barCategoryGap={12}
+                >
+                  <CartesianGrid
+                    horizontal={false}
+                    stroke={chartColors['--divider']}
+                    strokeWidth={1}
+                  />
+                  <XAxis
+                    type="number"
+                    // Headroom so the direct value label at the tip of the
+                    // largest bar never gets clipped against the chart edge.
+                    domain={[0, (max: number) => Math.ceil((max * 1.2) / 500) * 500]}
+                    tickFormatter={(v) => formatINR(v)}
+                    tick={{ fill: chartColors['--muted'], fontSize: 11 }}
+                    axisLine={{ stroke: chartColors['--hairline'] }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={84}
+                    tick={{ fill: chartColors['--ink'], fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: chartColors['--divider'] }}
+                    formatter={(value) => [formatINR(Number(value)), 'Spent']}
+                    contentStyle={{
+                      background: chartColors['--surface'],
+                      border: `1px solid ${chartColors['--hairline']}`,
+                      borderRadius: 11,
+                      fontSize: 12,
+                      color: chartColors['--ink'],
+                    }}
+                    // Value text stays in the ink token, not the bar's accent
+                    // color — the bar itself is the identity cue, text never
+                    // carries the data color.
+                    itemStyle={{ color: chartColors['--ink'], fontWeight: 600 }}
+                    labelStyle={{ color: chartColors['--muted'] }}
+                  />
+                  <Bar dataKey="amount" fill={chartColors['--action']} radius={[0, 6, 6, 0]} maxBarSize={22}>
+                    <LabelList
+                      dataKey="amount"
+                      position="right"
+                      formatter={(v) => formatINR(Number(v))}
+                      fill={chartColors['--muted']}
+                      fontSize={11}
                     />
-                  </div>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">{pct.toFixed(0)}% of total</p>
-                </div>
-              )
-            })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       )}

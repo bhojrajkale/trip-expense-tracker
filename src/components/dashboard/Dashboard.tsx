@@ -1,9 +1,39 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Expense, Trip } from '../../types'
 import { formatINR } from '../../utils/format'
 import { computeBalances, minimizeSettlements } from '../../utils/settlement'
 import ShareModal from '../ShareModal'
 import { printTripSummary } from '../../utils/printPDF'
+
+// Resolves CSS custom properties to their current computed value so recharts
+// (which needs real color strings, not var(...), for reliable cross-browser
+// SVG rendering — notably iOS Safari) stays in sync with the light/dark
+// toggle. Re-reads whenever <html data-theme> changes.
+function useCssVars(names: string[]): Record<string, string> {
+  const [values, setValues] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const read = () => {
+      const style = getComputedStyle(document.documentElement)
+      setValues(Object.fromEntries(names.map((n) => [n, style.getPropertyValue(n).trim()])))
+    }
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+    // `names` is a fixed literal array at each call site; re-running per
+    // render would defeat the MutationObserver's whole purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return values
+}
+
+// 8 fixed categorical hues, assigned in order, never cycled (CVD-safety
+// mechanism — see dataviz skill). Past this ceiling the smallest spenders
+// fold into a single gray "Other" slice rather than generating a 9th hue.
+const CHART_SLOTS = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-7', '--chart-8']
 
 interface Props {
   trip: Trip
@@ -29,6 +59,31 @@ export default function Dashboard({ trip, expenses }: Props) {
   const balances = useMemo(() => computeBalances(expenses, trip.members), [expenses, trip.members])
   const settlements = useMemo(() => minimizeSettlements(balances), [balances])
   const memberName = (id: string) => trip.members.find((m) => m.id === id)?.name ?? 'Unknown'
+
+  // Biggest spender first — the ranking is the point of a chart like this.
+  const spendByMember = useMemo(
+    () =>
+      trip.members
+        .map((m) => ({
+          name: m.name,
+          amount: expenses.filter((e) => e.paidBy === m.id).reduce((s, e) => s + e.amount, 0),
+        }))
+        .sort((a, b) => b.amount - a.amount),
+    [expenses, trip.members]
+  )
+
+  // Zero-spend members don't get a slice.
+  const pieData = useMemo(() => {
+    const withSpend = spendByMember.filter((m) => m.amount > 0)
+    if (withSpend.length <= CHART_SLOTS.length) return withSpend
+    const head = withSpend.slice(0, CHART_SLOTS.length - 1)
+    const tail = withSpend.slice(CHART_SLOTS.length - 1)
+    return [...head, { name: 'Other', amount: tail.reduce((s, m) => s + m.amount, 0) }]
+  }, [spendByMember])
+
+  const chartColors = useCssVars(['--ink', '--muted', '--divider', '--surface', '--hairline', ...CHART_SLOTS])
+  const sliceColor = (i: number, name: string) =>
+    name === 'Other' ? chartColors['--muted'] : chartColors[CHART_SLOTS[i]]
 
   const card = 'bg-[var(--surface)] border border-[var(--hairline)] rounded-[18px] p-4'
 
@@ -69,31 +124,71 @@ export default function Dashboard({ trip, expenses }: Props) {
       <BudgetCard totalSpent={totalSpent} budget={trip.budget} budgetPct={budgetPct} remaining={remaining} />
 
       {/* Per-person spend */}
-      {trip.members.length > 0 && (
+      {pieData.length > 0 && (
         <div className={card}>
           <p className="text-sm font-semibold text-[var(--ink)] mb-3" style={{ letterSpacing: '-0.1px' }}>Spent by Member</p>
-          <div className="space-y-3">
-            {trip.members.map((member) => {
-              const spent = expenses
-                .filter((e) => e.paidBy === member.id)
-                .reduce((s, e) => s + e.amount, 0)
-              const pct = totalSpent > 0 ? (spent / totalSpent) * 100 : 0
-              return (
-                <div key={member.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-[var(--ink)]">{member.name}</span>
-                    <span className="text-sm font-semibold text-[var(--ink)]">{formatINR(spent)}</span>
-                  </div>
-                  <div className="bg-[var(--divider)] rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-1.5 rounded-full bg-[var(--action)] transition-all duration-300"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">{pct.toFixed(0)}% of total</p>
-                </div>
-              )
-            })}
+          <div className="relative" style={{ width: '100%', height: 220 }}>
+            {chartColors['--chart-1'] && (
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="amount"
+                    nameKey="name"
+                    innerRadius="58%"
+                    outerRadius="90%"
+                    paddingAngle={pieData.length > 1 ? 2 : 0}
+                    stroke={chartColors['--surface']}
+                    strokeWidth={2}
+                  >
+                    {pieData.map((slice, i) => (
+                      <Cell key={slice.name} fill={sliceColor(i, slice.name)} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, name) => [
+                      `${formatINR(Number(value))} · ${((Number(value) / totalSpent) * 100).toFixed(0)}%`,
+                      name,
+                    ]}
+                    contentStyle={{
+                      background: chartColors['--surface'],
+                      border: `1px solid ${chartColors['--hairline']}`,
+                      borderRadius: 11,
+                      fontSize: 12,
+                      color: chartColors['--ink'],
+                    }}
+                    itemStyle={{ color: chartColors['--ink'], fontWeight: 600 }}
+                    labelStyle={{ color: chartColors['--muted'] }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+            {/* Center readout — the hole in the donut is otherwise dead space */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] text-[var(--muted)]">Total</span>
+              <span className="text-lg font-semibold text-[var(--ink)]" style={{ letterSpacing: '-0.3px' }}>
+                {formatINR(totalSpent)}
+              </span>
+            </div>
+          </div>
+          {/* Direct labels for every slice — identity + value + share stay
+              readable without hovering, and never depend on color alone. */}
+          <div className="space-y-2 mt-1">
+            {pieData.map((slice, i) => (
+              <div key={slice.name} className="flex items-center gap-2 text-sm">
+                <span
+                  className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0"
+                  style={{ backgroundColor: sliceColor(i, slice.name) }}
+                />
+                <span className="text-[var(--ink)] truncate">{slice.name}</span>
+                <span className="text-[var(--muted)] text-xs flex-shrink-0">
+                  {totalSpent > 0 ? ((slice.amount / totalSpent) * 100).toFixed(0) : 0}%
+                </span>
+                <span className="text-[var(--ink)] font-semibold ml-auto flex-shrink-0">
+                  {formatINR(slice.amount)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@
       <stop offset="1" stop-color="#0057d3" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#tetSky)" />
+  <rect width="512" height="512" fill="url(#tetSky)" />
   <path d="M216 188v-28a24 24 0 0 1 24-24h32a24 24 0 0 1 24 24v28" fill="none" stroke="#fff" stroke-width="24" stroke-linecap="round" />
   <rect x="112" y="184" width="288" height="204" rx="34" fill="#fff" />
   <rect x="112" y="262" width="288" height="32" fill="url(#tetSky)" />

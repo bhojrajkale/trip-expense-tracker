@@ -2,9 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/trip-expense-tracker/favicon.ico" sizes="32x32" />
-    <link rel="icon" type="image/svg+xml" href="/trip-expense-tracker/favicon.svg" />
-    <link rel="apple-touch-icon" href="/trip-expense-tracker/apple-touch-icon.png" />
+    <!--
+      Every app on bhojrajkale.github.io shares one origin, and Safari caches
+      touch icons per host — so these must be declared explicitly (and busted
+      with ?v when the art changes), or Safari reuses a sibling app's icon.
+    -->
+    <link rel="icon" href="/trip-expense-tracker/favicon.ico?v=2" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/trip-expense-tracker/favicon.svg?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/trip-expense-tracker/apple-touch-icon.png?v=2" />
+    <link
+      rel="apple-touch-icon-precomposed"
+      sizes="180x180"
+      href="/trip-expense-tracker/apple-touch-icon.png?v=2"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

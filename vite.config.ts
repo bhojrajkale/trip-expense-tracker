@@ -10,13 +10,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Trip Expense Tracker',
         short_name: 'TripTracker',
         description: 'Track and split travel expenses',
-        theme_color: '#6366f1',
-        background_color: '#0f172a',
+        theme_color: '#0066cc',
+        background_color: '#f5f5f7',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/trip-expense-tracker/',
